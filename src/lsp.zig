@@ -130,43 +130,43 @@ pub fn Lsp(comptime StateType: type) type {
                 },
                 rpc.MethodType.Initialized => {},
                 rpc.MethodType.TextDocument_DidOpen => {
+                    const parsed = try std.json.parseFromSlice(types.Notification.DidOpenTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
+                    defer parsed.deinit();
+
+                    const params = parsed.value.params;
+                    try openDocument(self, params.textDocument.uri, params.textDocument.text);
+
                     if (self.callback_doc_open) |callback| {
-                        const parsed = try std.json.parseFromSlice(types.Notification.DidOpenTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
-                        defer parsed.deinit();
-
-                        const params = parsed.value.params;
-                        try openDocument(self, params.textDocument.uri, params.textDocument.text);
                         const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
-
                         callback(allocator, context, params);
                     }
                 },
                 rpc.MethodType.TextDocument_DidChange => {
+                    const parsed = try std.json.parseFromSlice(types.Notification.DidChangeTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
+                    defer parsed.deinit();
+
+                    const params = parsed.value.params;
+                    for (params.contentChanges) |change| {
+                        try updateDocument(self, params.textDocument.uri, change.text, change.range);
+                    }
+
                     if (self.callback_doc_change) |callback| {
-                        const parsed = try std.json.parseFromSlice(types.Notification.DidChangeTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
-                        defer parsed.deinit();
-
-                        const params = parsed.value.params;
-                        for (params.contentChanges) |change| {
-                            try updateDocument(self, params.textDocument.uri, change.text, change.range);
-                        }
                         const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
-
                         callback(allocator, context, params);
                     }
                 },
                 rpc.MethodType.TextDocument_DidClose => {
+                    const parsed = try std.json.parseFromSlice(types.Notification.DidCloseTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
+                    defer parsed.deinit();
+
+                    const params = parsed.value.params;
+
                     if (self.callback_doc_close) |callback| {
-                        const parsed = try std.json.parseFromSlice(types.Notification.DidCloseTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
-                        defer parsed.deinit();
-
-                        const params = parsed.value.params;
                         const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
-
                         callback(allocator, context, params);
-
-                        closeDocument(self, params.textDocument.uri);
                     }
+
+                    closeDocument(self, params.textDocument.uri);
                 },
                 rpc.MethodType.TextDocument_Hover => {
                     if (self.callback_hover) |callback| {
