@@ -213,7 +213,7 @@ pub const ServerData = struct {
     serverInfo: ServerInfo,
 
     const ServerCapabilities = struct {
-        textDocumentSync: i32 = 1,
+        textDocumentSync: i32 = 2,
         hoverProvider: bool = false,
         codeActionProvider: bool = false,
     };

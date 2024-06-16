@@ -1,5 +1,5 @@
 pub const types = @import("types.zig");
-pub const document = @import("document.zig");
+pub const Document = @import("document.zig").Document;
 
 const std = @import("std");
 const rpc = @import("rpc.zig");
@@ -17,10 +17,10 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 pub fn Lsp(comptime StateType: type) type {
     return struct {
         fn NotificationCallback(comptime Type: type) type {
-            return fn (allocator: std.mem.Allocator, state: *StateType, params: Type.Params) void;
+            return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params) void;
         }
         fn RequestCallback(comptime Type: type) type {
-            return fn (allocator: std.mem.Allocator, state: *StateType, params: Type.Params, id: i32) void;
+            return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params, id: i32) void;
         }
 
         callback_doc_open: ?*const NotificationCallback(types.Notification.DidOpenTextDocument) = null,
@@ -30,8 +30,14 @@ pub fn Lsp(comptime StateType: type) type {
         callback_codeAction: ?*const RequestCallback(types.Request.CodeAction) = null,
 
         state: *StateType,
+        documents: std.StringHashMap(Document),
         server_data: types.ServerData,
         allocator: std.mem.Allocator,
+
+        pub const Context = struct {
+            document: Document,
+            state: *StateType,
+        };
 
         const RunState = enum {
             Run,
@@ -41,7 +47,16 @@ pub fn Lsp(comptime StateType: type) type {
 
         const Self = @This();
         pub fn init(allocator: std.mem.Allocator, server_data: types.ServerData, state: *StateType) Self {
-            return Self{ .allocator = allocator, .server_data = server_data, .state = state };
+            return Self{ .allocator = allocator, .server_data = server_data, .state = state, .documents = std.StringHashMap(Document).init(allocator) };
+        }
+
+        pub fn deinit(self: *Self) void {
+            var it = self.documents.iterator();
+            while (it.next()) |i| {
+                self.allocator.free(i.key_ptr.*);
+                i.value_ptr.deinit();
+            }
+            self.documents.deinit();
         }
 
         pub fn registerDocOpenCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidOpenTextDocument)) void {
@@ -118,35 +133,61 @@ pub fn Lsp(comptime StateType: type) type {
                     if (self.callback_doc_open) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Notification.DidOpenTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
-                        callback(allocator, self.state, parsed.value.params);
+
+                        const params = parsed.value.params;
+                        try openDocument(self, params.textDocument.uri, params.textDocument.text);
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+
+                        callback(allocator, context, params);
                     }
                 },
                 rpc.MethodType.TextDocument_DidChange => {
                     if (self.callback_doc_change) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Notification.DidChangeTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
-                        callback(allocator, self.state, parsed.value.params);
+
+                        const params = parsed.value.params;
+                        for (params.contentChanges) |change| {
+                            try updateDocument(self, params.textDocument.uri, change.text, change.range);
+                        }
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+
+                        callback(allocator, context, params);
                     }
                 },
                 rpc.MethodType.TextDocument_DidClose => {
                     if (self.callback_doc_close) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Notification.DidCloseTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
-                        callback(allocator, self.state, parsed.value.params);
+
+                        const params = parsed.value.params;
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+
+                        callback(allocator, context, params);
+
+                        closeDocument(self, params.textDocument.uri);
                     }
                 },
                 rpc.MethodType.TextDocument_Hover => {
                     if (self.callback_hover) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Request.Hover, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
-                        callback(allocator, self.state, parsed.value.params, parsed.value.id);
+
+                        const params = parsed.value.params;
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+
+                        callback(allocator, context, params, parsed.value.id);
                     }
                 },
                 rpc.MethodType.TextDocument_CodeAction => {
                     if (self.callback_codeAction) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Request.CodeAction, allocator, msg.content, .{ .ignore_unknown_fields = true });
-                        defer parsed.deinit();
-                        callback(allocator, self.state, parsed.value.params, parsed.value.id);
+                        parsed.deinit();
+
+                        const params = parsed.value.params;
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+
+                        callback(allocator, context, params, parsed.value.id);
                     }
                 },
                 rpc.MethodType.Shutdown => {
@@ -196,6 +237,25 @@ pub fn Lsp(comptime StateType: type) type {
             const response_msg = types.Response.Initialize.init(request.id, server_data);
 
             try writeResponse(allocator, response_msg);
+        }
+
+        pub fn openDocument(self: *Self, name: []const u8, content: []const u8) !void {
+            const key = try self.allocator.alloc(u8, name.len);
+            std.mem.copyForwards(u8, key, name);
+            const doc = try Document.init(self.allocator, content);
+
+            try self.documents.put(key, doc);
+        }
+
+        pub fn closeDocument(self: *Self, name: []const u8) void {
+            const entry = self.documents.fetchRemove(name);
+            self.allocator.free(entry.?.key);
+            entry.?.value.deinit();
+        }
+
+        pub fn updateDocument(self: *Self, name: []const u8, text: []const u8, range: types.Range) !void {
+            var doc = self.documents.getPtr(name).?;
+            try doc.update(text, range);
         }
     };
 }
