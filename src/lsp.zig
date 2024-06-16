@@ -1,4 +1,4 @@
-pub const types = @import("lsp_types.zig");
+pub const types = @import("types.zig");
 pub const document = @import("document.zig");
 
 const std = @import("std");
