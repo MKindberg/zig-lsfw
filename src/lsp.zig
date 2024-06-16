@@ -29,14 +29,14 @@ pub fn Lsp(comptime StateType: type) type {
         callback_hover: ?*const RequestCallback(types.Request.Hover) = null,
         callback_codeAction: ?*const RequestCallback(types.Request.CodeAction) = null,
 
-        state: *StateType,
+        state: StateType,
         documents: std.StringHashMap(Document),
         server_data: types.ServerData,
         allocator: std.mem.Allocator,
 
         pub const Context = struct {
             document: Document,
-            state: *StateType,
+            state: StateType,
         };
 
         const RunState = enum {
@@ -46,7 +46,7 @@ pub fn Lsp(comptime StateType: type) type {
         };
 
         const Self = @This();
-        pub fn init(allocator: std.mem.Allocator, server_data: types.ServerData, state: *StateType) Self {
+        pub fn init(allocator: std.mem.Allocator, server_data: types.ServerData, state: StateType) Self {
             return Self{ .allocator = allocator, .server_data = server_data, .state = state, .documents = std.StringHashMap(Document).init(allocator) };
         }
 
