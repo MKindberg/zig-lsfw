@@ -14,6 +14,7 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
     _ = try writer.write(response.items);
     std.log.info("Sent response", .{});
 }
+
 pub fn Lsp(comptime StateType: type) type {
     return struct {
         fn NotificationCallback(comptime Type: type) type {
@@ -182,7 +183,7 @@ pub fn Lsp(comptime StateType: type) type {
                 rpc.MethodType.TextDocument_CodeAction => {
                     if (self.callback_codeAction) |callback| {
                         const parsed = try std.json.parseFromSlice(types.Request.CodeAction, allocator, msg.content, .{ .ignore_unknown_fields = true });
-                        parsed.deinit();
+                        defer parsed.deinit();
 
                         const params = parsed.value.params;
                         const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
@@ -240,8 +241,7 @@ pub fn Lsp(comptime StateType: type) type {
         }
 
         pub fn openDocument(self: *Self, name: []const u8, content: []const u8) !void {
-            const key = try self.allocator.alloc(u8, name.len);
-            std.mem.copyForwards(u8, key, name);
+            const key = try self.allocator.dupe(u8, name);
             const doc = try Document.init(self.allocator, content);
 
             try self.documents.put(key, doc);
