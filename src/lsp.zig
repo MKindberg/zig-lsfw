@@ -26,6 +26,7 @@ pub fn Lsp(comptime StateType: type) type {
 
         callback_doc_open: ?*const NotificationCallback(types.Notification.DidOpenTextDocument) = null,
         callback_doc_change: ?*const NotificationCallback(types.Notification.DidChangeTextDocument) = null,
+        callback_doc_save: ?*const NotificationCallback(types.Notification.DidSaveTextDocument) = null,
         callback_doc_close: ?*const NotificationCallback(types.Notification.DidCloseTextDocument) = null,
         callback_hover: ?*const RequestCallback(types.Request.Hover) = null,
         callback_codeAction: ?*const RequestCallback(types.Request.CodeAction) = null,
@@ -65,6 +66,9 @@ pub fn Lsp(comptime StateType: type) type {
         }
         pub fn registerDocChangeCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidChangeTextDocument)) void {
             self.callback_doc_change = callback;
+        }
+        pub fn registerDocSaveCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidSaveTextDocument)) void {
+            self.callback_doc_save = callback;
         }
         pub fn registerDocCloseCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidCloseTextDocument)) void {
             self.callback_doc_close = callback;
@@ -152,6 +156,16 @@ pub fn Lsp(comptime StateType: type) type {
                     }
 
                     if (self.callback_doc_change) |callback| {
+                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        callback(allocator, context, params);
+                    }
+                },
+                rpc.MethodType.TextDocument_DidSave => {
+                    const parsed = try std.json.parseFromSlice(types.Notification.DidSaveTextDocument, allocator, msg.content, .{ .ignore_unknown_fields = true });
+                    defer parsed.deinit();
+
+                    const params = parsed.value.params;
+                    if (self.callback_doc_save) |callback| {
                         const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
                         callback(allocator, context, params);
                     }

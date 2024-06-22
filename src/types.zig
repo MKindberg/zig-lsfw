@@ -172,6 +172,15 @@ pub const Notification = struct {
         };
     };
 
+    pub const DidSaveTextDocument = struct {
+        jsonrpc: []const u8 = "2.0",
+        method: []u8,
+        params: Params,
+        pub const Params = struct {
+            textDocument: TextDocumentIdentifier,
+        };
+    };
+
     pub const DidCloseTextDocument = struct {
         jsonrpc: []const u8 = "2.0",
         method: []u8,
