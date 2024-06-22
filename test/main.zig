@@ -41,6 +41,7 @@ pub fn main() !u8 {
 
     server.registerDocOpenCallback(handleOpenDoc);
     server.registerDocChangeCallback(handleChangeDoc);
+    server.registerDocSaveCallback(handleSaveDoc);
     server.registerHoverCallback(handleHover);
     server.registerCodeActionCallback(handleCodeAction);
 
@@ -52,6 +53,9 @@ fn handleOpenDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notifi
 }
 fn handleChangeDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidChangeTextDocument.Params) void {
     _ = context.state.write("Changed document\n") catch unreachable;
+}
+fn handleSaveDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidSaveTextDocument.Params) void {
+    _ = context.state.write("Saved document\n") catch unreachable;
 }
 fn handleHover(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Request.Hover.Params, _: i32) void {
     _ = context.state.write("Hover\n") catch unreachable;
@@ -111,6 +115,7 @@ test "Run nvim" {
         \\Hover
         \\Changed document
         \\Code action
+        \\Saved document
         \\
     ;
     const actual = try std.fs.cwd().readFileAlloc(std.testing.allocator, "output.txt", 1000000);

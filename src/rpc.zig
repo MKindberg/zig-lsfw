@@ -22,6 +22,7 @@ pub const MethodType = enum {
     Initialized,
     TextDocument_DidOpen,
     TextDocument_DidChange,
+    TextDocument_DidSave,
     TextDocument_DidClose,
     TextDocument_Hover,
     TextDocument_CodeAction,
@@ -34,6 +35,7 @@ pub const MethodType = enum {
             .Initialized => return "initialized",
             .TextDocument_DidOpen => return "textDocument/didOpen",
             .TextDocument_DidChange => return "textDocument/didChange",
+            .TextDocument_DidSave => return "textDocument/didSave",
             .TextDocument_DidClose => return "textDocument/didClose",
             .TextDocument_Hover => return "textDocument/hover",
             .TextDocument_CodeAction => return "textDocument/codeAction",
@@ -50,6 +52,8 @@ pub const MethodType = enum {
             return MethodType.TextDocument_DidOpen;
         } else if (std.mem.eql(u8, s, "textDocument/didChange")) {
             return MethodType.TextDocument_DidChange;
+        } else if (std.mem.eql(u8, s, "textDocument/didSave")) {
+            return MethodType.TextDocument_DidSave;
         } else if (std.mem.eql(u8, s, "textDocument/hover")) {
             return MethodType.TextDocument_Hover;
         } else if (std.mem.eql(u8, s, "textDocument/codeAction")) {
