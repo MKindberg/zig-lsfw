@@ -36,7 +36,6 @@ pub fn Lsp(comptime StateType: type) type {
         allocator: std.mem.Allocator,
 
         pub const Context = struct {
-            uri: []const u8,
             document: Document,
             state: ?StateType,
         };
@@ -139,7 +138,7 @@ pub fn Lsp(comptime StateType: type) type {
                     defer parsed.deinit();
 
                     const params = parsed.value.params;
-                    try openDocument(self, params.textDocument.uri, params.textDocument.text);
+                    try openDocument(self, params.textDocument.uri, params.textDocument.languageId, params.textDocument.text);
 
                     if (self.callback_doc_open) |callback| {
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
@@ -254,16 +253,14 @@ pub fn Lsp(comptime StateType: type) type {
             try writeResponse(allocator, response_msg);
         }
 
-        pub fn openDocument(self: *Self, name: []const u8, content: []const u8) !void {
-            const key = try self.allocator.dupe(u8, name);
-            const context = Context{ .uri = key, .document = try Document.init(self.allocator, content), .state = null };
+        pub fn openDocument(self: *Self, name: []const u8, language: []const u8, content: []const u8) !void {
+            const context = Context{ .document = try Document.init(self.allocator, name, language, content), .state = null };
 
-            try self.contexts.put(key, context);
+            try self.contexts.put(context.document.uri, context);
         }
 
         pub fn closeDocument(self: *Self, name: []const u8) void {
             const entry = self.contexts.fetchRemove(name);
-            self.allocator.free(entry.?.key);
             entry.?.value.document.deinit();
         }
 

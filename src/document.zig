@@ -3,23 +3,29 @@ const types = @import("types.zig");
 
 pub const Document = struct {
     allocator: std.mem.Allocator,
+    uri: []const u8,
+    language: []const u8,
     /// Slice pointing to the document's text.
     text: []u8,
     /// Slice pointing to the memory where the text is stored.
     data: []u8,
 
-    pub fn init(allocator: std.mem.Allocator, content: []const u8) !Document {
+    pub fn init(allocator: std.mem.Allocator, uri: []const u8, language: []const u8, content: []const u8) !Document {
         const data = try allocator.alloc(u8, content.len + content.len / 3);
         std.mem.copyForwards(u8, data, content);
         const text = data[0..content.len];
         return Document{
             .allocator = allocator,
+            .uri = try allocator.dupe(u8, uri),
+            .language = try allocator.dupe(u8, language),
             .data = data,
             .text = text,
         };
     }
 
     pub fn deinit(self: Document) void {
+        self.allocator.free(self.uri);
+        self.allocator.free(self.language);
         self.allocator.free(self.data);
     }
 
@@ -140,7 +146,7 @@ pub const FindIterator = struct {
 
 test "addText" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "hello world");
+    var doc = try Document.init(allocator, "", "", "hello world");
     defer doc.deinit();
 
     try doc.update(",", .{
@@ -152,7 +158,7 @@ test "addText" {
 
 test "addTextAtEnd" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "hello world");
+    var doc = try Document.init(allocator, "", "", "hello world");
     defer doc.deinit();
 
     try doc.update("!", .{
@@ -164,7 +170,7 @@ test "addTextAtEnd" {
 
 test "addTextAtStart" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "ello world");
+    var doc = try Document.init(allocator, "", "", "ello world");
     defer doc.deinit();
 
     try doc.update("H", .{
@@ -176,7 +182,7 @@ test "addTextAtStart" {
 
 test "ChangeText" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "hello world");
+    var doc = try Document.init(allocator, "", "", "hello world");
     defer doc.deinit();
     try doc.update("H", .{
         .start = .{ .line = 0, .character = 0 },
@@ -187,7 +193,7 @@ test "ChangeText" {
 
 test "RemoveText" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "Hello world");
+    var doc = try Document.init(allocator, "", "", "Hello world");
     defer doc.deinit();
     try doc.update("", .{
         .start = .{ .line = 0, .character = 5 },
@@ -198,7 +204,7 @@ test "RemoveText" {
 
 test "RemoveTextAtStart" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "Hello world");
+    var doc = try Document.init(allocator, "", "", "Hello world");
     defer doc.deinit();
     try doc.update("", .{
         .start = .{ .line = 0, .character = 0 },
@@ -209,7 +215,7 @@ test "RemoveTextAtStart" {
 
 test "RemoveTextAtEnd" {
     const allocator = std.testing.allocator;
-    var doc = try Document.init(allocator, "Hello world");
+    var doc = try Document.init(allocator, "", "", "Hello world");
     defer doc.deinit();
     try doc.update("", .{
         .start = .{ .line = 0, .character = 10 },
