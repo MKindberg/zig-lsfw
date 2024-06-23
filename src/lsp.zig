@@ -18,19 +18,18 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 pub fn Lsp(comptime StateType: type) type {
     return struct {
         const OpenDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, params: types.Notification.DidOpenTextDocument.Params) void;
-        fn NotificationCallback(comptime Type: type) type {
-            return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params) void;
-        }
-        fn RequestCallback(comptime Type: type) type {
-            return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params, id: i32) void;
-        }
+        const ChangeDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidChangeTextDocument.Params) void;
+        const SaveDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidSaveTextDocument.Params) void;
+        const CloseDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidCloseTextDocument.Params) void;
+        const HoverCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Request.Hover.Params, id: i32) void;
+        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Request.CodeAction.Params, id: i32) void;
 
         callback_doc_open: ?*const OpenDocumentCallback = null,
-        callback_doc_change: ?*const NotificationCallback(types.Notification.DidChangeTextDocument) = null,
-        callback_doc_save: ?*const NotificationCallback(types.Notification.DidSaveTextDocument) = null,
-        callback_doc_close: ?*const NotificationCallback(types.Notification.DidCloseTextDocument) = null,
-        callback_hover: ?*const RequestCallback(types.Request.Hover) = null,
-        callback_codeAction: ?*const RequestCallback(types.Request.CodeAction) = null,
+        callback_doc_change: ?*const ChangeDocumentCallback = null,
+        callback_doc_save: ?*const SaveDocumentCallback = null,
+        callback_doc_close: ?*const CloseDocumentCallback = null,
+        callback_hover: ?*const HoverCallback = null,
+        callback_codeAction: ?*const CodeActionCallback = null,
 
         contexts: std.StringHashMap(Context),
         server_data: types.ServerData,
@@ -65,19 +64,19 @@ pub fn Lsp(comptime StateType: type) type {
         pub fn registerDocOpenCallback(self: *Self, callback: *const OpenDocumentCallback) void {
             self.callback_doc_open = callback;
         }
-        pub fn registerDocChangeCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidChangeTextDocument)) void {
+        pub fn registerDocChangeCallback(self: *Self, callback: *const ChangeDocumentCallback) void {
             self.callback_doc_change = callback;
         }
-        pub fn registerDocSaveCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidSaveTextDocument)) void {
+        pub fn registerDocSaveCallback(self: *Self, callback: *const SaveDocumentCallback) void {
             self.callback_doc_save = callback;
         }
-        pub fn registerDocCloseCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidCloseTextDocument)) void {
+        pub fn registerDocCloseCallback(self: *Self, callback: *const CloseDocumentCallback) void {
             self.callback_doc_close = callback;
         }
-        pub fn registerHoverCallback(self: *Self, callback: *const RequestCallback(types.Request.Hover)) void {
+        pub fn registerHoverCallback(self: *Self, callback: *const HoverCallback) void {
             self.callback_hover = callback;
         }
-        pub fn registerCodeActionCallback(self: *Self, callback: *const RequestCallback(types.Request.CodeAction)) void {
+        pub fn registerCodeActionCallback(self: *Self, callback: *const CodeActionCallback) void {
             self.callback_codeAction = callback;
         }
 
