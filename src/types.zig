@@ -165,11 +165,6 @@ pub const Notification = struct {
                 version: i32,
             };
         };
-
-        const ChangeEvent = struct {
-            range: Range,
-            text: []u8,
-        };
     };
 
     pub const DidSaveTextDocument = struct {
@@ -241,6 +236,11 @@ pub const Position = struct {
 pub const TextEdit = struct {
     range: Range,
     newText: []const u8,
+};
+
+pub const ChangeEvent = struct {
+    range: Range,
+    text: []const u8,
 };
 
 pub const Diagnostic = struct {
