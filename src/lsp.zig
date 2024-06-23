@@ -17,6 +17,7 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 
 pub fn Lsp(comptime StateType: type) type {
     return struct {
+        const OpenDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, params: types.Notification.DidOpenTextDocument.Params) void;
         fn NotificationCallback(comptime Type: type) type {
             return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params) void;
         }
@@ -24,21 +25,21 @@ pub fn Lsp(comptime StateType: type) type {
             return fn (allocator: std.mem.Allocator, context: Context, params: Type.Params, id: i32) void;
         }
 
-        callback_doc_open: ?*const NotificationCallback(types.Notification.DidOpenTextDocument) = null,
+        callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const NotificationCallback(types.Notification.DidChangeTextDocument) = null,
         callback_doc_save: ?*const NotificationCallback(types.Notification.DidSaveTextDocument) = null,
         callback_doc_close: ?*const NotificationCallback(types.Notification.DidCloseTextDocument) = null,
         callback_hover: ?*const RequestCallback(types.Request.Hover) = null,
         callback_codeAction: ?*const RequestCallback(types.Request.CodeAction) = null,
 
-        state: StateType,
-        documents: std.StringHashMap(Document),
+        contexts: std.StringHashMap(Context),
         server_data: types.ServerData,
         allocator: std.mem.Allocator,
 
         pub const Context = struct {
+            uri: []const u8,
             document: Document,
-            state: StateType,
+            state: ?StateType,
         };
 
         const RunState = enum {
@@ -48,20 +49,20 @@ pub fn Lsp(comptime StateType: type) type {
         };
 
         const Self = @This();
-        pub fn init(allocator: std.mem.Allocator, server_data: types.ServerData, state: StateType) Self {
-            return Self{ .allocator = allocator, .server_data = server_data, .state = state, .documents = std.StringHashMap(Document).init(allocator) };
+        pub fn init(allocator: std.mem.Allocator, server_data: types.ServerData) Self {
+            return Self{ .allocator = allocator, .server_data = server_data, .contexts = std.StringHashMap(Context).init(allocator) };
         }
 
         pub fn deinit(self: *Self) void {
-            var it = self.documents.iterator();
+            var it = self.contexts.iterator();
             while (it.next()) |i| {
                 self.allocator.free(i.key_ptr.*);
-                i.value_ptr.deinit();
+                i.value_ptr.document.deinit();
             }
-            self.documents.deinit();
+            self.contexts.deinit();
         }
 
-        pub fn registerDocOpenCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidOpenTextDocument)) void {
+        pub fn registerDocOpenCallback(self: *Self, callback: *const OpenDocumentCallback) void {
             self.callback_doc_open = callback;
         }
         pub fn registerDocChangeCallback(self: *Self, callback: *const NotificationCallback(types.Notification.DidChangeTextDocument)) void {
@@ -142,7 +143,7 @@ pub fn Lsp(comptime StateType: type) type {
                     try openDocument(self, params.textDocument.uri, params.textDocument.text);
 
                     if (self.callback_doc_open) |callback| {
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
                         callback(allocator, context, params);
                     }
                 },
@@ -156,7 +157,7 @@ pub fn Lsp(comptime StateType: type) type {
                     }
 
                     if (self.callback_doc_change) |callback| {
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.get(params.textDocument.uri).?;
                         callback(allocator, context, params);
                     }
                 },
@@ -166,7 +167,7 @@ pub fn Lsp(comptime StateType: type) type {
 
                     const params = parsed.value.params;
                     if (self.callback_doc_save) |callback| {
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.get(params.textDocument.uri).?;
                         callback(allocator, context, params);
                     }
                 },
@@ -177,7 +178,7 @@ pub fn Lsp(comptime StateType: type) type {
                     const params = parsed.value.params;
 
                     if (self.callback_doc_close) |callback| {
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.get(params.textDocument.uri).?;
                         callback(allocator, context, params);
                     }
 
@@ -189,7 +190,7 @@ pub fn Lsp(comptime StateType: type) type {
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.get(params.textDocument.uri).?;
 
                         callback(allocator, context, params, parsed.value.id);
                     }
@@ -200,7 +201,7 @@ pub fn Lsp(comptime StateType: type) type {
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
-                        const context = Context{ .state = self.state, .document = self.documents.get(params.textDocument.uri).? };
+                        const context = self.contexts.get(params.textDocument.uri).?;
 
                         callback(allocator, context, params, parsed.value.id);
                     }
@@ -256,20 +257,20 @@ pub fn Lsp(comptime StateType: type) type {
 
         pub fn openDocument(self: *Self, name: []const u8, content: []const u8) !void {
             const key = try self.allocator.dupe(u8, name);
-            const doc = try Document.init(self.allocator, content);
+            const context = Context{ .uri = key, .document = try Document.init(self.allocator, content), .state = null };
 
-            try self.documents.put(key, doc);
+            try self.contexts.put(key, context);
         }
 
         pub fn closeDocument(self: *Self, name: []const u8) void {
-            const entry = self.documents.fetchRemove(name);
+            const entry = self.contexts.fetchRemove(name);
             self.allocator.free(entry.?.key);
-            entry.?.value.deinit();
+            entry.?.value.document.deinit();
         }
 
         pub fn updateDocument(self: *Self, name: []const u8, text: []const u8, range: types.Range) !void {
-            var doc = self.documents.getPtr(name).?;
-            try doc.update(text, range);
+            var context = self.contexts.getPtr(name).?;
+            try context.document.update(text, range);
         }
     };
 }

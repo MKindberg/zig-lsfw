@@ -36,32 +36,39 @@ pub fn main() !u8 {
     var file = try std.fs.cwd().createFile("output.txt", .{ .truncate = true });
     defer file.close();
 
-    var server = Lsp.init(allocator, server_data, file);
+    var server = Lsp.init(allocator, server_data);
     defer server.deinit();
 
     server.registerDocOpenCallback(handleOpenDoc);
     server.registerDocChangeCallback(handleChangeDoc);
     server.registerDocSaveCallback(handleSaveDoc);
+    server.registerDocCloseCallback(handleCloseDoc);
     server.registerHoverCallback(handleHover);
     server.registerCodeActionCallback(handleCodeAction);
 
     return try server.start();
 }
 
-fn handleOpenDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidOpenTextDocument.Params) void {
-    _ = context.state.write("Opened document\n") catch unreachable;
+fn handleOpenDoc(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Notification.DidOpenTextDocument.Params) void {
+    const file = std.fs.cwd().createFile("output.txt", .{ .truncate = true }) catch unreachable;
+    context.state = file;
+    _ = context.state.?.write("Opened document\n") catch unreachable;
+}
+fn handleCloseDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidCloseTextDocument.Params) void {
+    _ = context.state.?.write("Closed document\n") catch unreachable;
+    context.state.?.close();
 }
 fn handleChangeDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidChangeTextDocument.Params) void {
-    _ = context.state.write("Changed document\n") catch unreachable;
+    _ = context.state.?.write("Changed document\n") catch unreachable;
 }
 fn handleSaveDoc(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Notification.DidSaveTextDocument.Params) void {
-    _ = context.state.write("Saved document\n") catch unreachable;
+    _ = context.state.?.write("Saved document\n") catch unreachable;
 }
 fn handleHover(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Request.Hover.Params, _: i32) void {
-    _ = context.state.write("Hover\n") catch unreachable;
+    _ = context.state.?.write("Hover\n") catch unreachable;
 }
 fn handleCodeAction(_: std.mem.Allocator, context: Lsp.Context, _: lsp.types.Request.CodeAction.Params, _: i32) void {
-    _ = context.state.write("Code action\n") catch unreachable;
+    _ = context.state.?.write("Code action\n") catch unreachable;
 }
 
 test "Run nvim" {
