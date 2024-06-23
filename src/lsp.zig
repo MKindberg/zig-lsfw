@@ -17,12 +17,12 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 
 pub fn Lsp(comptime StateType: type) type {
     return struct {
-        const OpenDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, params: types.Notification.DidOpenTextDocument.Params) void;
-        const ChangeDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidChangeTextDocument.Params) void;
-        const SaveDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidSaveTextDocument.Params) void;
-        const CloseDocumentCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Notification.DidCloseTextDocument.Params) void;
-        const HoverCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Request.Hover.Params, id: i32) void;
-        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: Context, params: types.Request.CodeAction.Params, id: i32) void;
+        const OpenDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
+        const ChangeDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, changes: []types.ChangeEvent) void;
+        const SaveDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
+        const CloseDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
+        const HoverCallback = fn (allocator: std.mem.Allocator, context: *Context, id: i32, position: types.Position) void;
+        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: *Context, id: i32, range: types.Range) void;
 
         callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const ChangeDocumentCallback = null,
@@ -54,7 +54,6 @@ pub fn Lsp(comptime StateType: type) type {
         pub fn deinit(self: *Self) void {
             var it = self.contexts.iterator();
             while (it.next()) |i| {
-                self.allocator.free(i.key_ptr.*);
                 i.value_ptr.document.deinit();
             }
             self.contexts.deinit();
@@ -142,7 +141,7 @@ pub fn Lsp(comptime StateType: type) type {
 
                     if (self.callback_doc_open) |callback| {
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        callback(allocator, context, params);
+                        callback(allocator, context);
                     }
                 },
                 rpc.MethodType.TextDocument_DidChange => {
@@ -155,8 +154,8 @@ pub fn Lsp(comptime StateType: type) type {
                     }
 
                     if (self.callback_doc_change) |callback| {
-                        const context = self.contexts.get(params.textDocument.uri).?;
-                        callback(allocator, context, params);
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
+                        callback(allocator, context, params.contentChanges);
                     }
                 },
                 rpc.MethodType.TextDocument_DidSave => {
@@ -165,8 +164,8 @@ pub fn Lsp(comptime StateType: type) type {
 
                     const params = parsed.value.params;
                     if (self.callback_doc_save) |callback| {
-                        const context = self.contexts.get(params.textDocument.uri).?;
-                        callback(allocator, context, params);
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
+                        callback(allocator, context);
                     }
                 },
                 rpc.MethodType.TextDocument_DidClose => {
@@ -176,8 +175,8 @@ pub fn Lsp(comptime StateType: type) type {
                     const params = parsed.value.params;
 
                     if (self.callback_doc_close) |callback| {
-                        const context = self.contexts.get(params.textDocument.uri).?;
-                        callback(allocator, context, params);
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
+                        callback(allocator, context);
                     }
 
                     closeDocument(self, params.textDocument.uri);
@@ -188,9 +187,9 @@ pub fn Lsp(comptime StateType: type) type {
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
-                        const context = self.contexts.get(params.textDocument.uri).?;
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(allocator, context, params, parsed.value.id);
+                        callback(allocator, context, parsed.value.id, params.position);
                     }
                 },
                 rpc.MethodType.TextDocument_CodeAction => {
@@ -199,9 +198,9 @@ pub fn Lsp(comptime StateType: type) type {
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
-                        const context = self.contexts.get(params.textDocument.uri).?;
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(allocator, context, params, parsed.value.id);
+                        callback(allocator, context, parsed.value.id, params.range);
                     }
                 },
                 rpc.MethodType.Shutdown => {
