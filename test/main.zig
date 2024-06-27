@@ -64,11 +64,13 @@ fn handleChangeDoc(_: std.mem.Allocator, context: *Lsp.Context, _: []lsp.types.C
 fn handleSaveDoc(_: std.mem.Allocator, context: *Lsp.Context) void {
     _ = context.state.?.write("Saved document\n") catch unreachable;
 }
-fn handleHover(_: std.mem.Allocator, context: *Lsp.Context, _: i32, _: lsp.types.Position) void {
+fn handleHover(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?[]const u8 {
     _ = context.state.?.write("Hover\n") catch unreachable;
+    return null;
 }
-fn handleCodeAction(_: std.mem.Allocator, context: *Lsp.Context, _: i32, _: lsp.types.Range) void {
+fn handleCodeAction(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Range) ?[]const lsp.types.Response.CodeAction.Result {
     _ = context.state.?.write("Code action\n") catch unreachable;
+    return null;
 }
 
 test "Run nvim" {

@@ -21,8 +21,8 @@ pub fn Lsp(comptime StateType: type) type {
         const ChangeDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, changes: []types.ChangeEvent) void;
         const SaveDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
         const CloseDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
-        const HoverCallback = fn (allocator: std.mem.Allocator, context: *Context, id: i32, position: types.Position) void;
-        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: *Context, id: i32, range: types.Range) void;
+        const HoverCallback = fn (allocator: std.mem.Allocator, context: *Context, position: types.Position) ?[]const u8;
+        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: *Context, range: types.Range) ?[]const types.Response.CodeAction.Result;
 
         callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const ChangeDocumentCallback = null,
@@ -199,7 +199,10 @@ pub fn Lsp(comptime StateType: type) type {
                         const params = parsed.value.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(arena.allocator(), context, parsed.value.id, params.position);
+                        if (callback(arena.allocator(), context, params.position)) |message| {
+                            const response = types.Response.Hover.init(parsed.value.id, message);
+                            try writeResponse(allocator, response);
+                        }
                     }
                 },
                 rpc.MethodType.TextDocument_CodeAction => {
@@ -212,7 +215,10 @@ pub fn Lsp(comptime StateType: type) type {
                         const params = parsed.value.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(arena.allocator(), context, parsed.value.id, params.range);
+                        if (callback(arena.allocator(), context, params.range)) |results| {
+                            const response = types.Response.CodeAction{ .id = parsed.value.id, .result = results };
+                            try writeResponse(allocator, response);
+                        }
                     }
                 },
                 rpc.MethodType.Shutdown => {
