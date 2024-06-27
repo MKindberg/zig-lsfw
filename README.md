@@ -28,7 +28,7 @@ const Lsp = lsp.Lsp(StateType);
 var server = Lsp.init(allocator, server_data, &state);
 defer server.deinit();
 ```
-4. Create the relevant callbacks using lsp.writeResponse to send messages back to the client. All callbacks take at least two arguments: an allocator and a context. The context contains the document and a document specific optional instance of state. Requests also get passed an id that can be used when responding to the requests and some callbacks, like hover, also take another parameter containing additional information that might be useful.
+4. Create the relevant callbacks using lsp.writeResponse to send messages back to the client. All callbacks take at least two arguments: an arena allocator that will be freed after the callback and a context. The context contains the document and a document specific optional instance of state. Requests also get passed an id that can be used when responding to the requests and some callbacks, like hover, also take another parameter containing additional information that might be useful.
 ```zig
 fn handleHover(allocator: std.mem.Allocator, context: *Lsp.Context, id: i32, position: lsp_types.Position) void {
     const text = context.state.hoverText();

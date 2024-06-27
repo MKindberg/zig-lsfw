@@ -140,8 +140,10 @@ pub fn Lsp(comptime StateType: type) type {
                     try openDocument(self, params.textDocument.uri, params.textDocument.languageId, params.textDocument.text);
 
                     if (self.callback_doc_open) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        callback(allocator, context);
+                        callback(arena.allocator(), context);
                     }
                 },
                 rpc.MethodType.TextDocument_DidChange => {
@@ -154,8 +156,10 @@ pub fn Lsp(comptime StateType: type) type {
                     }
 
                     if (self.callback_doc_change) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        callback(allocator, context, params.contentChanges);
+                        callback(arena.allocator(), context, params.contentChanges);
                     }
                 },
                 rpc.MethodType.TextDocument_DidSave => {
@@ -164,8 +168,10 @@ pub fn Lsp(comptime StateType: type) type {
 
                     const params = parsed.value.params;
                     if (self.callback_doc_save) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        callback(allocator, context);
+                        callback(arena.allocator(), context);
                     }
                 },
                 rpc.MethodType.TextDocument_DidClose => {
@@ -175,32 +181,38 @@ pub fn Lsp(comptime StateType: type) type {
                     const params = parsed.value.params;
 
                     if (self.callback_doc_close) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        callback(allocator, context);
+                        callback(arena.allocator(), context);
                     }
 
                     closeDocument(self, params.textDocument.uri);
                 },
                 rpc.MethodType.TextDocument_Hover => {
                     if (self.callback_hover) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const parsed = try std.json.parseFromSlice(types.Request.Hover, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(allocator, context, parsed.value.id, params.position);
+                        callback(arena.allocator(), context, parsed.value.id, params.position);
                     }
                 },
                 rpc.MethodType.TextDocument_CodeAction => {
                     if (self.callback_codeAction) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
                         const parsed = try std.json.parseFromSlice(types.Request.CodeAction, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        callback(allocator, context, parsed.value.id, params.range);
+                        callback(arena.allocator(), context, parsed.value.id, params.range);
                     }
                 },
                 rpc.MethodType.Shutdown => {
