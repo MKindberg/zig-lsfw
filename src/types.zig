@@ -199,6 +199,16 @@ pub const Notification = struct {
         jsonrpc: []const u8 = "2.0",
         method: []u8,
     };
+
+    pub const LogMessage = struct {
+        jsonrpc: []const u8 = "2.0",
+        method: []const u8 = "window/logMessage",
+        params: Params,
+        pub const Params = struct {
+            type: i32,
+            message: []const u8,
+        };
+    };
 };
 
 const TextDocumentItem = struct {
@@ -261,4 +271,12 @@ pub const ErrorCode = enum(i32) {
     MethodNotFound = -32601,
     InvalidParams = -32602,
     InternalError = -32603,
+};
+
+pub const MessageType = enum(i32) {
+    Error = 1,
+    Warning = 2,
+    Info = 3,
+    Log = 4,
+    Debug = 5,
 };

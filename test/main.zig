@@ -5,18 +5,10 @@ const Lsp = lsp.Lsp(std.fs.File);
 
 const builtin = @import("builtin");
 
-pub fn log(
-    comptime message_level: std.log.Level,
-    comptime scope: @Type(.EnumLiteral),
-    comptime format: []const u8,
-    args: anytype,
-) void {
-    _ = message_level;
-    _ = scope;
-    std.debug.print(format, args);
-}
-
-pub const std_options = .{ .log_level = if (builtin.mode == .Debug) .debug else .info, .logFn = log };
+pub const std_options = .{
+    .log_level = .debug,
+    .logFn = lsp.log,
+};
 
 pub fn main() !u8 {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

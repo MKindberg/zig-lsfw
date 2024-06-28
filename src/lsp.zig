@@ -1,5 +1,6 @@
 pub const types = @import("types.zig");
 pub const Document = @import("document.zig").Document;
+pub const log = @import("logger.zig").log;
 
 const std = @import("std");
 const rpc = @import("rpc.zig");
@@ -12,7 +13,6 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 
     const writer = std.io.getStdOut().writer();
     _ = try writer.write(response.items);
-    std.log.info("Sent response", .{});
 }
 
 pub fn Lsp(comptime StateType: type) type {
