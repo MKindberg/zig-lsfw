@@ -187,7 +187,7 @@ pub const Notification = struct {
 
     pub const PublishDiagnostics = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []const u8,
+        method: []const u8 = "textDocument/publishDiagnostics",
         params: Params,
         pub const Params = struct {
             uri: []const u8,
