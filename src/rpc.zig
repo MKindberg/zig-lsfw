@@ -1,4 +1,5 @@
 const std = @import("std");
+const logger = @import("logger.zig");
 
 pub fn encodeMessage(allocator: std.mem.Allocator, msg: anytype) !std.ArrayList(u8) {
     var res = std.ArrayList(u8).init(allocator);
@@ -82,7 +83,7 @@ pub const DecodedMessage = struct {
 pub fn decodeMessage(allocator: std.mem.Allocator, msg: []const u8) !DecodedMessage {
     const parsed = try std.json.parseFromSlice(BaseMessage, allocator, msg, .{ .ignore_unknown_fields = true });
     defer parsed.deinit();
-    std.log.info("{s}", .{parsed.value.method});
+    logger.trace("Decoded {s}", .{parsed.value.method});
     const method_type = try MethodType.fromString(parsed.value.method);
     return .{ .method = method_type, .content = msg };
 }

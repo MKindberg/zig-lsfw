@@ -62,21 +62,27 @@ pub fn Lsp(comptime StateType: type) type {
 
         pub fn registerDocOpenCallback(self: *Self, callback: *const OpenDocumentCallback) void {
             self.callback_doc_open = callback;
+            logger.trace("Registered open doc callback", .{});
         }
         pub fn registerDocChangeCallback(self: *Self, callback: *const ChangeDocumentCallback) void {
             self.callback_doc_change = callback;
+            logger.trace("Registered change doc callback", .{});
         }
         pub fn registerDocSaveCallback(self: *Self, callback: *const SaveDocumentCallback) void {
             self.callback_doc_save = callback;
+            logger.trace("Registered save doc callback", .{});
         }
         pub fn registerDocCloseCallback(self: *Self, callback: *const CloseDocumentCallback) void {
             self.callback_doc_close = callback;
+            logger.trace("Registered close doc callback", .{});
         }
         pub fn registerHoverCallback(self: *Self, callback: *const HoverCallback) void {
             self.callback_hover = callback;
+            logger.trace("Registered hover callback", .{});
         }
         pub fn registerCodeActionCallback(self: *Self, callback: *const CodeActionCallback) void {
             self.callback_codeAction = callback;
+            logger.trace("Registered code action callback", .{});
         }
 
         pub fn start(self: *Self) !u8 {
@@ -91,14 +97,14 @@ pub fn Lsp(comptime StateType: type) type {
 
             var run_state = RunState.Run;
             while (run_state == RunState.Run) {
-                std.log.info("Waiting for header", .{});
+                logger.trace("Waiting for header", .{});
                 _ = try reader.readUntilDelimiterOrEof(header.writer(), "\r\n\r\n");
 
                 const content_len_str = "Content-Length: ";
                 const content_len = if (std.mem.indexOf(u8, header.items, content_len_str)) |idx|
                     try std.fmt.parseInt(usize, header.items[idx + content_len_str.len ..], 10)
                 else {
-                    _ = try std.io.getStdErr().write("Content-Length not found in header\n");
+                    std.log.warn("Content-Length not found in header\n", .{});
                     break;
                 };
                 header.clearRetainingCapacity();
@@ -110,7 +116,7 @@ pub fn Lsp(comptime StateType: type) type {
                 defer content.clearRetainingCapacity();
 
                 const decoded = rpc.decodeMessage(self.allocator, content.items) catch |e| {
-                    std.log.info("Failed to decode message: {any}\n", .{e});
+                    std.log.warn("Failed to decode message: {any}\n", .{e});
                     continue;
                 };
                 run_state = try self.handleMessage(self.allocator, decoded);
@@ -123,7 +129,7 @@ pub fn Lsp(comptime StateType: type) type {
                 var shutdown = false;
             };
 
-            std.log.info("Received request: {s}", .{msg.method.toString()});
+            logger.trace("Received request: {s}", .{msg.method.toString()});
 
             if (local_state.shutdown and msg.method != rpc.MethodType.Exit) {
                 return try handleShutingDown(allocator, msg.method, msg.content);
@@ -264,7 +270,7 @@ pub fn Lsp(comptime StateType: type) type {
             const request = parsed.value;
 
             const client_info = request.params.clientInfo.?;
-            std.log.info("Connected to {s} {s}", .{ client_info.name, client_info.version });
+            logger.trace("Connected to {s} {s}", .{ client_info.name, client_info.version });
 
             if (request.params.trace) |trace| {
                 logger.trace_value = trace;

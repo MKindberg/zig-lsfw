@@ -137,7 +137,6 @@ pub const FindIterator = struct {
                 .start = start_pos,
                 .end = end_pos,
             };
-            std.log.debug("Found pattern at: {}", .{res});
             return res;
         }
         return null;
