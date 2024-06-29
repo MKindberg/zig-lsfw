@@ -24,7 +24,7 @@ pub fn log(
     const message = std.fmt.bufPrint(&message_buf, prefix ++ format, args) catch return;
 
     const notification = types.Notification.LogMessage{ .params = .{
-        .type = @intFromEnum(message_type),
+        .type = message_type,
         .message = message,
     } };
 

@@ -92,6 +92,7 @@ pub const Response = struct {
             };
         }
     };
+
     pub const CodeAction = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
@@ -132,7 +133,7 @@ pub const Response = struct {
                 .jsonrpc = "2.0",
                 .id = id,
                 .@"error" = .{
-                    .code = @intFromEnum(code),
+                    .code = code,
                     .message = message,
                 },
             };
@@ -205,7 +206,7 @@ pub const Notification = struct {
         method: []const u8 = "window/logMessage",
         params: Params,
         pub const Params = struct {
-            type: i32,
+            type: MessageType,
             message: []const u8,
         };
     };
@@ -227,7 +228,7 @@ pub const ServerData = struct {
     serverInfo: ServerInfo,
 
     const ServerCapabilities = struct {
-        textDocumentSync: i32 = 2,
+        textDocumentSync: TextDocumentSyncKind = .Incremental,
         hoverProvider: bool = false,
         codeActionProvider: bool = false,
     };
@@ -261,7 +262,7 @@ pub const Diagnostic = struct {
 };
 
 pub const ErrorData = struct {
-    code: i32,
+    code: ErrorCode,
     message: []const u8,
 };
 
@@ -271,6 +272,11 @@ pub const ErrorCode = enum(i32) {
     MethodNotFound = -32601,
     InvalidParams = -32602,
     InternalError = -32603,
+
+    const Self = @This();
+    pub fn jsonStringify(self: Self, out: anytype) !void {
+        return out.print("{}", .{@intFromEnum(self)});
+    }
 };
 
 pub const MessageType = enum(i32) {
@@ -279,4 +285,20 @@ pub const MessageType = enum(i32) {
     Info = 3,
     Log = 4,
     Debug = 5,
+
+    const Self = @This();
+    pub fn jsonStringify(self: Self, out: anytype) !void {
+        return out.print("{}", .{@intFromEnum(self)});
+    }
+};
+
+pub const TextDocumentSyncKind = enum(i32) {
+    None = 0,
+    Full = 1,
+    Incremental = 2,
+
+    const Self = @This();
+    pub fn jsonStringify(self: Self, out: anytype) !void {
+        return out.print("{}", .{@intFromEnum(self)});
+    }
 };
