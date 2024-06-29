@@ -14,6 +14,7 @@ pub const Request = struct {
 
         const Params = struct {
             clientInfo: ?ClientInfo,
+            trace: ?TraceValue,
 
             const ClientInfo = struct {
                 name: []u8,
@@ -210,6 +211,16 @@ pub const Notification = struct {
             message: []const u8,
         };
     };
+
+    pub const LogTrace = struct {
+        jsonrpc: []const u8 = "2.0",
+        method: []const u8 = "$/logTrace",
+        params: Params,
+        pub const Params = struct {
+            message: []const u8,
+            verbose: ?[]const u8 = null,
+        };
+    };
 };
 
 const TextDocumentItem = struct {
@@ -300,5 +311,30 @@ pub const TextDocumentSyncKind = enum(i32) {
     const Self = @This();
     pub fn jsonStringify(self: Self, out: anytype) !void {
         return out.print("{}", .{@intFromEnum(self)});
+    }
+};
+
+pub const TraceValue = enum {
+    Off,
+    Messages,
+    Verbose,
+
+    const Self = @This();
+    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !Self {
+        _ = options;
+        switch (try source.nextAlloc(allocator, .alloc_if_needed)) {
+            inline .string, .allocated_string => |s| {
+                if (std.mem.eql(u8, s, "off")) {
+                    return .Off;
+                } else if (std.mem.eql(u8, s, "messages")) {
+                    return .Messages;
+                } else if (std.mem.eql(u8, s, "verbose")) {
+                    return .Verbose;
+                } else {
+                    return error.UnexpectedToken;
+                }
+            },
+            else => return error.UnexpectedToken,
+        }
     }
 };

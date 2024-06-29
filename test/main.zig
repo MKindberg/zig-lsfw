@@ -67,8 +67,9 @@ fn handleCodeAction(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Ra
 
 test "Run nvim" {
     const nvim_config =
+        \\ vim.lsp.set_log_level("TRACE")
         \\local start_tester = function()
-        \\    local client = vim.lsp.start_client { name = "tester", cmd = { "zig-out/bin/test" }, }
+        \\    local client = vim.lsp.start_client { name = "tester", cmd = { "zig-out/bin/test" }, trace = "verbose"}
         \\
         \\    if not client then
         \\        vim.notify("Failed to start tester")

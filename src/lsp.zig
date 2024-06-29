@@ -1,6 +1,7 @@
 pub const types = @import("types.zig");
+pub const logger = @import("logger.zig");
 pub const Document = @import("document.zig").Document;
-pub const log = @import("logger.zig").log;
+pub const log = logger.log;
 
 const std = @import("std");
 const rpc = @import("rpc.zig");
@@ -264,6 +265,10 @@ pub fn Lsp(comptime StateType: type) type {
 
             const client_info = request.params.clientInfo.?;
             std.log.info("Connected to {s} {s}", .{ client_info.name, client_info.version });
+
+            if (request.params.trace) |trace| {
+                logger.trace_value = trace;
+            }
 
             const response_msg = types.Response.Initialize.init(request.id, server_data);
 
