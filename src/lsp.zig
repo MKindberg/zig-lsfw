@@ -172,16 +172,16 @@ pub fn Lsp(comptime StateType: type) type {
 
             logger.trace("Received request: {s}", .{msg.method.toString()});
 
-            if (local_state.shutdown and msg.method != rpc.MethodType.Exit) {
+            if (local_state.shutdown and msg.method != rpc.MethodType.exit) {
                 return try handleShutingDown(allocator, msg.method, msg.content);
             }
             switch (msg.method) {
-                rpc.MethodType.Initialize => {
+                rpc.MethodType.initialize => {
                     if (!self.server_data.capabilities.textDocumentSync.openClose) @panic("TextDocumentSync.OpenClose must be true");
                     try handleInitialize(allocator, msg.content, self.server_data);
                 },
-                rpc.MethodType.Initialized => {},
-                rpc.MethodType.TextDocument_DidOpen => {
+                rpc.MethodType.initialized => {},
+                rpc.MethodType.@"textDocument/didOpen" => {
                     var arena = std.heap.ArenaAllocator.init(self.allocator);
                     defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidOpenTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
@@ -194,7 +194,7 @@ pub fn Lsp(comptime StateType: type) type {
                         callback(arena.allocator(), context);
                     }
                 },
-                rpc.MethodType.TextDocument_DidChange => {
+                rpc.MethodType.@"textDocument/didChange" => {
                     var arena = std.heap.ArenaAllocator.init(self.allocator);
                     defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidChangeTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
@@ -209,7 +209,7 @@ pub fn Lsp(comptime StateType: type) type {
                         callback(arena.allocator(), context, params.contentChanges);
                     }
                 },
-                rpc.MethodType.TextDocument_DidSave => {
+                rpc.MethodType.@"textDocument/didSave" => {
                     var arena = std.heap.ArenaAllocator.init(self.allocator);
                     defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidSaveTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
@@ -220,7 +220,7 @@ pub fn Lsp(comptime StateType: type) type {
                         callback(arena.allocator(), context);
                     }
                 },
-                rpc.MethodType.TextDocument_DidClose => {
+                rpc.MethodType.@"textDocument/didClose" => {
                     var arena = std.heap.ArenaAllocator.init(self.allocator);
                     defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidCloseTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
@@ -234,7 +234,7 @@ pub fn Lsp(comptime StateType: type) type {
 
                     closeDocument(self, params.textDocument.uri);
                 },
-                rpc.MethodType.TextDocument_Hover => {
+                rpc.MethodType.@"textDocument/hover" => {
                     if (self.callback_hover) |callback| {
                         var arena = std.heap.ArenaAllocator.init(self.allocator);
                         defer arena.deinit();
@@ -249,7 +249,7 @@ pub fn Lsp(comptime StateType: type) type {
                         }
                     }
                 },
-                rpc.MethodType.TextDocument_CodeAction => {
+                rpc.MethodType.@"textDocument/codeAction" => {
                     if (self.callback_codeAction) |callback| {
                         var arena = std.heap.ArenaAllocator.init(self.allocator);
                         defer arena.deinit();
@@ -264,27 +264,27 @@ pub fn Lsp(comptime StateType: type) type {
                         }
                     }
                 },
-                rpc.MethodType.GoToDefinition => {
-                    if (self.callback_goto_definition) |callback| {
-                        try self.handleGoTo(msg, callback);
-                    }
-                },
-                rpc.MethodType.GoToDeclaration => {
+                rpc.MethodType.@"textDocument/declaration" => {
                     if (self.callback_goto_declaration) |callback| {
                         try self.handleGoTo(msg, callback);
                     }
                 },
-                rpc.MethodType.GoToTypeDefinition => {
+                rpc.MethodType.@"textDocument/definition" => {
+                    if (self.callback_goto_definition) |callback| {
+                        try self.handleGoTo(msg, callback);
+                    }
+                },
+                rpc.MethodType.@"textDocument/typeDefinition" => {
                     if (self.callback_goto_type_definition) |callback| {
                         try self.handleGoTo(msg, callback);
                     }
                 },
-                rpc.MethodType.GoToImplementation => {
+                rpc.MethodType.@"textDocument/implementation" => {
                     if (self.callback_goto_implementation) |callback| {
                         try self.handleGoTo(msg, callback);
                     }
                 },
-                rpc.MethodType.FindReferences => {
+                rpc.MethodType.@"textDocument/references" => {
                     if (self.callback_find_references) |callback| {
                         var arena = std.heap.ArenaAllocator.init(self.allocator);
                         defer arena.deinit();
@@ -297,11 +297,11 @@ pub fn Lsp(comptime StateType: type) type {
                         }
                     }
                 },
-                rpc.MethodType.Shutdown => {
+                rpc.MethodType.shutdown => {
                     try handleShutdown(allocator, msg.content);
                     local_state.shutdown = true;
                 },
-                rpc.MethodType.Exit => {
+                rpc.MethodType.exit => {
                     return RunState.ShutdownErr;
                 },
             }
@@ -329,7 +329,7 @@ pub fn Lsp(comptime StateType: type) type {
         }
 
         fn handleShutingDown(allocator: std.mem.Allocator, method_type: rpc.MethodType, msg: []const u8) !RunState {
-            if (method_type == rpc.MethodType.Exit) {
+            if (method_type == rpc.MethodType.exit) {
                 return RunState.ShutdownOk;
             }
 

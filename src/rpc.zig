@@ -19,72 +19,30 @@ const BaseMessage = struct {
 };
 
 pub const MethodType = enum {
-    Initialize,
-    Initialized,
-    TextDocument_DidOpen,
-    TextDocument_DidChange,
-    TextDocument_DidSave,
-    TextDocument_DidClose,
-    TextDocument_Hover,
-    TextDocument_CodeAction,
-    GoToDeclaration,
-    GoToDefinition,
-    GoToTypeDefinition,
-    GoToImplementation,
-    FindReferences,
-    Shutdown,
-    Exit,
+    initialize,
+    initialized,
+    @"textDocument/didOpen",
+    @"textDocument/didChange",
+    @"textDocument/didSave",
+    @"textDocument/didClose",
+    @"textDocument/hover",
+    @"textDocument/codeAction",
+    @"textDocument/declaration",
+    @"textDocument/definition",
+    @"textDocument/typeDefinition",
+    @"textDocument/implementation",
+    @"textDocument/references",
+    shutdown,
+    exit,
 
     pub fn toString(self: MethodType) []const u8 {
-        switch (self) {
-            .Initialize => return "initialize",
-            .Initialized => return "initialized",
-            .TextDocument_DidOpen => return "textDocument/didOpen",
-            .TextDocument_DidChange => return "textDocument/didChange",
-            .TextDocument_DidSave => return "textDocument/didSave",
-            .TextDocument_DidClose => return "textDocument/didClose",
-            .TextDocument_Hover => return "textDocument/hover",
-            .TextDocument_CodeAction => return "textDocument/codeAction",
-            .GoToDeclaration => return "textDocument/declaration",
-            .GoToDefinition => return "textDocument/definition",
-            .GoToTypeDefinition => return "textDocument/typeDefinition",
-            .GoToImplementation => return "textDocument/implementation",
-            .FindReferences => return "textDocument/references",
-            .Shutdown => return "shutdown",
-            .Exit => return "exit",
-        }
+        return @tagName(self);
     }
     pub fn fromString(s: []const u8) !MethodType {
-        if (std.mem.eql(u8, s, "initialize")) {
-            return MethodType.Initialize;
-        } else if (std.mem.eql(u8, s, "initialized")) {
-            return MethodType.Initialized;
-        } else if (std.mem.eql(u8, s, "textDocument/didOpen")) {
-            return MethodType.TextDocument_DidOpen;
-        } else if (std.mem.eql(u8, s, "textDocument/didChange")) {
-            return MethodType.TextDocument_DidChange;
-        } else if (std.mem.eql(u8, s, "textDocument/didSave")) {
-            return MethodType.TextDocument_DidSave;
-        } else if (std.mem.eql(u8, s, "textDocument/hover")) {
-            return MethodType.TextDocument_Hover;
-        } else if (std.mem.eql(u8, s, "textDocument/codeAction")) {
-            return MethodType.TextDocument_CodeAction;
-        } else if (std.mem.eql(u8, s, "textDocument/didClose")) {
-            return MethodType.TextDocument_DidClose;
-        } else if (std.mem.eql(u8, s, "textDocument/declaration")) {
-            return MethodType.GoToDeclaration;
-        } else if (std.mem.eql(u8, s, "textDocument/definition")) {
-            return MethodType.GoToDefinition;
-        } else if (std.mem.eql(u8, s, "textDocument/typeDefinition")) {
-            return MethodType.GoToTypeDefinition;
-        } else if (std.mem.eql(u8, s, "textDocument/implementation")) {
-            return MethodType.GoToImplementation;
-        } else if (std.mem.eql(u8, s, "textDocument/references")) {
-            return MethodType.FindReferences;
-        } else if (std.mem.eql(u8, s, "shutdown")) {
-            return MethodType.Shutdown;
-        } else if (std.mem.eql(u8, s, "exit")) {
-            return MethodType.Exit;
+        inline for (@typeInfo(MethodType).Enum.fields) |field| {
+            if (std.mem.eql(u8, s, field.name)) {
+                return @enumFromInt(field.value);
+            }
         }
         return DecodeError.UnknownMethod;
     }
@@ -122,5 +80,5 @@ test "encodeMessage" {
 test "decodeMessage" {
     const msg = "{\"method\":\"initialize\",\"y\":37}";
     const message = try decodeMessage(std.testing.allocator, msg[0..]);
-    try std.testing.expectEqual(message.method, MethodType.Initialize);
+    try std.testing.expectEqual(message.method, MethodType.initialize);
 }
