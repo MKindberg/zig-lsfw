@@ -38,6 +38,12 @@ pub fn main() !u8 {
     server.registerHoverCallback(handleHover);
     server.registerCodeActionCallback(handleCodeAction);
 
+    server.registerGoToDeclarationCallback(handleGoToDeclaration);
+    server.registerGoToDefinitionCallback(handleGotoDefinition);
+    server.registerGoToTypeDefinitionCallback(handleGoToTypeDefinition);
+    server.registerGoToImplementationCallback(handleGoToImplementation);
+    server.registerFindReferencesCallback(handleFindReferences);
+
     return try server.start();
 }
 
@@ -64,6 +70,26 @@ fn handleCodeAction(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Ra
     _ = context.state.?.write("Code action\n") catch unreachable;
     return null;
 }
+fn handleGoToDeclaration(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?lsp.types.Location {
+    _ = context.state.?.write("Go to declaration\n") catch unreachable;
+    return null;
+}
+fn handleGotoDefinition(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?lsp.types.Location {
+    _ = context.state.?.write("Go to definition\n") catch unreachable;
+    return null;
+}
+fn handleGoToTypeDefinition(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?lsp.types.Location {
+    _ = context.state.?.write("Go to type definition\n") catch unreachable;
+    return null;
+}
+fn handleGoToImplementation(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?lsp.types.Location {
+    _ = context.state.?.write("Go to implementation\n") catch unreachable;
+    return null;
+}
+fn handleFindReferences(_: std.mem.Allocator, context: *Lsp.Context, _: lsp.types.Position) ?[]lsp.types.Location {
+    _ = context.state.?.write("Find references\n") catch unreachable;
+    return null;
+}
 
 test "Run nvim" {
     const nvim_config =
@@ -83,6 +109,21 @@ test "Run nvim" {
     ;
     std.fs.cwd().writeFile(.{ .sub_path = "nvim_config.lua", .data = nvim_config }) catch unreachable;
     defer std.fs.cwd().deleteFile("nvim_config.lua") catch {};
+
+    const commands =
+        \\vim.cmd(":norm itext")
+        \\vim.lsp.buf.hover()
+        \\vim.cmd(":norm itext")
+        \\vim.lsp.buf.code_action()
+        \\vim.lsp.buf.definition()
+        \\vim.lsp.buf.declaration()
+        \\vim.lsp.buf.type_definition()
+        \\vim.lsp.buf.implementation()
+        \\vim.lsp.buf.references()
+        \\vim.cmd(":wq")
+    ;
+    std.fs.cwd().writeFile(.{ .sub_path = "commands.lua", .data = commands }) catch unreachable;
+    defer std.fs.cwd().deleteFile("commands.lua") catch {};
     const argv = [_][]const u8{
         "nvim",
         "--headless",
@@ -91,16 +132,8 @@ test "Run nvim" {
         "test.txt",
         "-c",
         "sleep 1", // ls doesn't start properly without this sleep
-        "-c",
-        ":norm itext",
-        "-c",
-        ":lua vim.lsp.buf.hover()",
-        "-c",
-        ":norm itext",
-        "-c",
-        ":lua vim.lsp.buf.code_action()",
-        "-c",
-        ":wq",
+        "-l",
+        "commands.lua",
     };
     var child = std.process.Child.init(&argv, std.testing.allocator);
 
@@ -117,6 +150,11 @@ test "Run nvim" {
         \\Hover
         \\Changed document
         \\Code action
+        \\Go to definition
+        \\Go to declaration
+        \\Go to type definition
+        \\Go to implementation
+        \\Find references
         \\Saved document
         \\
     ;

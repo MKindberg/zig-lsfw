@@ -23,17 +23,14 @@ pub const Request = struct {
         };
     };
 
-    pub const Hover = struct {
+    // Used by hover, goto definition, etc.
+    pub const PositionRequest = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
         method: []u8,
-        params: Params,
-
-        pub const Params = struct {
-            textDocument: TextDocumentIdentifier,
-            position: Position,
-        };
+        params: PositionParams,
     };
+
     pub const CodeAction = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
@@ -106,6 +103,35 @@ pub const Response = struct {
                 changes: std.json.ArrayHashMap([]const TextEdit),
             };
         };
+    };
+
+    // Used by goto definition, etc.
+    pub const LocationResponse = struct {
+        jsonrpc: []const u8 = "2.0",
+        id: i32,
+        result: Location,
+
+        const Self = @This();
+        pub fn init(id: i32, location: Location) Self {
+            return Self{
+                .id = id,
+                .result = location,
+            };
+        }
+    };
+
+    pub const MultiLocationResponse = struct {
+        jsonrpc: []const u8 = "2.0",
+        id: i32,
+        result: []const Location,
+
+        const Self = @This();
+        pub fn init(id: i32, locations: []const Location) Self {
+            return Self{
+                .id = id,
+                .result = locations,
+            };
+        }
     };
 
     pub const Shutdown = struct {
@@ -242,6 +268,11 @@ pub const ServerData = struct {
         textDocumentSync: TextDocumentSyncKind = .Incremental,
         hoverProvider: bool = false,
         codeActionProvider: bool = false,
+        declarationProvider: bool = false,
+        definitionProvider: bool = false,
+        typeDefinitionProvider: bool = false,
+        implementationProvider: bool = false,
+        referencesProvider: bool = false,
     };
     const ServerInfo = struct { name: []const u8, version: []const u8 };
 };
@@ -253,6 +284,16 @@ pub const Range = struct {
 pub const Position = struct {
     line: usize,
     character: usize,
+};
+
+pub const PositionParams = struct {
+    textDocument: TextDocumentIdentifier,
+    position: Position,
+};
+
+pub const Location = struct {
+    uri: []const u8,
+    range: Range,
 };
 
 pub const TextEdit = struct {

@@ -18,12 +18,19 @@ pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
 
 pub fn Lsp(comptime StateType: type) type {
     return struct {
-        const OpenDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
-        const ChangeDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context, changes: []types.ChangeEvent) void;
-        const SaveDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
-        const CloseDocumentCallback = fn (allocator: std.mem.Allocator, context: *Context) void;
-        const HoverCallback = fn (allocator: std.mem.Allocator, context: *Context, position: types.Position) ?[]const u8;
-        const CodeActionCallback = fn (allocator: std.mem.Allocator, context: *Context, range: types.Range) ?[]const types.Response.CodeAction.Result;
+        const OpenDocumentCallback = fn (arena: std.mem.Allocator, context: *Context) void;
+        const ChangeDocumentCallback = fn (arena: std.mem.Allocator, context: *Context, changes: []types.ChangeEvent) void;
+        const SaveDocumentCallback = fn (arena: std.mem.Allocator, context: *Context) void;
+        const CloseDocumentCallback = fn (arena: std.mem.Allocator, context: *Context) void;
+
+        const HoverCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const u8;
+        const CodeActionCallback = fn (arena: std.mem.Allocator, context: *Context, range: types.Range) ?[]const types.Response.CodeAction.Result;
+
+        const GoToDefinitionCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
+        const GoToDeclarationCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
+        const GoToTypeDefinitionCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
+        const GoToImplementationCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
+        const FindReferencesCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const types.Location;
 
         callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const ChangeDocumentCallback = null,
@@ -31,6 +38,12 @@ pub fn Lsp(comptime StateType: type) type {
         callback_doc_close: ?*const CloseDocumentCallback = null,
         callback_hover: ?*const HoverCallback = null,
         callback_codeAction: ?*const CodeActionCallback = null,
+
+        callback_goto_definition: ?*const GoToDefinitionCallback = null,
+        callback_goto_declaration: ?*const GoToDeclarationCallback = null,
+        callback_goto_type_definition: ?*const GoToTypeDefinitionCallback = null,
+        callback_goto_implementation: ?*const GoToImplementationCallback = null,
+        callback_find_references: ?*const FindReferencesCallback = null,
 
         contexts: std.StringHashMap(Context),
         server_data: types.ServerData,
@@ -85,6 +98,31 @@ pub fn Lsp(comptime StateType: type) type {
             self.callback_codeAction = callback;
             self.server_data.capabilities.codeActionProvider = true;
             logger.trace("Registered code action callback", .{});
+        }
+        pub fn registerGoToDefinitionCallback(self: *Self, callback: *const GoToDefinitionCallback) void {
+            self.callback_goto_definition = callback;
+            self.server_data.capabilities.definitionProvider = true;
+            logger.trace("Registered go to definition callback", .{});
+        }
+        pub fn registerGoToDeclarationCallback(self: *Self, callback: *const GoToDeclarationCallback) void {
+            self.callback_goto_declaration = callback;
+            self.server_data.capabilities.declarationProvider = true;
+            logger.trace("Registered go to declaration callback", .{});
+        }
+        pub fn registerGoToTypeDefinitionCallback(self: *Self, callback: *const GoToTypeDefinitionCallback) void {
+            self.callback_goto_type_definition = callback;
+            self.server_data.capabilities.typeDefinitionProvider = true;
+            logger.trace("Registered go to type definition callback", .{});
+        }
+        pub fn registerGoToImplementationCallback(self: *Self, callback: *const GoToImplementationCallback) void {
+            self.callback_goto_implementation = callback;
+            self.server_data.capabilities.implementationProvider = true;
+            logger.trace("Registered go to implementation callback", .{});
+        }
+        pub fn registerFindReferencesCallback(self: *Self, callback: *const FindReferencesCallback) void {
+            self.callback_find_references = callback;
+            self.server_data.capabilities.referencesProvider = true;
+            logger.trace("Registered find references callback", .{});
         }
 
         pub fn start(self: *Self) !u8 {
@@ -202,7 +240,7 @@ pub fn Lsp(comptime StateType: type) type {
                     if (self.callback_hover) |callback| {
                         var arena = std.heap.ArenaAllocator.init(self.allocator);
                         defer arena.deinit();
-                        const parsed = try std.json.parseFromSlice(types.Request.Hover, allocator, msg.content, .{ .ignore_unknown_fields = true });
+                        const parsed = try std.json.parseFromSlice(types.Request.PositionRequest, allocator, msg.content, .{ .ignore_unknown_fields = true });
                         defer parsed.deinit();
 
                         const params = parsed.value.params;
@@ -230,6 +268,39 @@ pub fn Lsp(comptime StateType: type) type {
                         }
                     }
                 },
+                rpc.MethodType.GoToDefinition => {
+                    if (self.callback_goto_definition) |callback| {
+                        try self.handleGoTo(msg, callback);
+                    }
+                },
+                rpc.MethodType.GoToDeclaration => {
+                    if (self.callback_goto_declaration) |callback| {
+                        try self.handleGoTo(msg, callback);
+                    }
+                },
+                rpc.MethodType.GoToTypeDefinition => {
+                    if (self.callback_goto_type_definition) |callback| {
+                        try self.handleGoTo(msg, callback);
+                    }
+                },
+                rpc.MethodType.GoToImplementation => {
+                    if (self.callback_goto_implementation) |callback| {
+                        try self.handleGoTo(msg, callback);
+                    }
+                },
+                rpc.MethodType.FindReferences => {
+                    if (self.callback_find_references) |callback| {
+                        var arena = std.heap.ArenaAllocator.init(self.allocator);
+                        defer arena.deinit();
+                        const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
+                        const params = parsed.params;
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
+                        if (callback(arena.allocator(), context, params.position)) |locations| {
+                            const response = types.Response.MultiLocationResponse.init(parsed.id, locations);
+                            try writeResponse(arena.allocator(), response);
+                        }
+                    }
+                },
                 rpc.MethodType.Shutdown => {
                     try handleShutdown(allocator, msg.content);
                     local_state.shutdown = true;
@@ -239,6 +310,18 @@ pub fn Lsp(comptime StateType: type) type {
                 },
             }
             return RunState.Run;
+        }
+
+        fn handleGoTo(self: *Self, msg: rpc.DecodedMessage, callback: anytype) !void {
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            defer arena.deinit();
+            const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
+            const params = parsed.params;
+            const context = self.contexts.getPtr(params.textDocument.uri).?;
+            if (callback(arena.allocator(), context, params.position)) |location| {
+                const response = types.Response.LocationResponse.init(parsed.id, location);
+                try writeResponse(arena.allocator(), response);
+            }
         }
 
         fn handleShutdown(allocator: std.mem.Allocator, msg: []const u8) !void {
