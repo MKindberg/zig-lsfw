@@ -15,10 +15,6 @@ pub fn main() !u8 {
     const allocator = gpa.allocator();
 
     const server_data = lsp.types.ServerData{
-        .capabilities = .{
-            .hoverProvider = true,
-            .codeActionProvider = true,
-        },
         .serverInfo = .{
             .name = "tester",
             .version = "0.1.0",

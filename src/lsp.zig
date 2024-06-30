@@ -83,6 +83,7 @@ pub fn Lsp(comptime StateType: type) type {
         }
         pub fn registerDocSaveCallback(self: *Self, callback: *const SaveDocumentCallback) void {
             self.callback_doc_save = callback;
+            self.server_data.capabilities.textDocumentSync.save = true;
             logger.trace("Registered save doc callback", .{});
         }
         pub fn registerDocCloseCallback(self: *Self, callback: *const CloseDocumentCallback) void {
@@ -176,6 +177,7 @@ pub fn Lsp(comptime StateType: type) type {
             }
             switch (msg.method) {
                 rpc.MethodType.Initialize => {
+                    if(!self.server_data.capabilities.textDocumentSync.openClose) @panic("TextDocumentSync.OpenClose must be true");
                     try handleInitialize(allocator, msg.content, self.server_data);
                 },
                 rpc.MethodType.Initialized => {},

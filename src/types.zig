@@ -265,7 +265,7 @@ pub const ServerData = struct {
     serverInfo: ServerInfo,
 
     const ServerCapabilities = struct {
-        textDocumentSync: TextDocumentSyncKind = .Incremental,
+        textDocumentSync: TextDocumentSyncOptions = .{},
         hoverProvider: bool = false,
         codeActionProvider: bool = false,
         declarationProvider: bool = false,
@@ -378,4 +378,10 @@ pub const TraceValue = enum {
             else => return error.UnexpectedToken,
         }
     }
+};
+
+pub const TextDocumentSyncOptions = struct {
+    openClose: bool = true,
+    change: TextDocumentSyncKind = .Incremental,
+    save: bool = false,
 };
