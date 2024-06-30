@@ -12,8 +12,6 @@ pub fn log(
 ) void {
     _ = scope;
 
-    const prefix = "[[" ++ comptime level.asText() ++ "]] ";
-
     const message_type = switch (level) {
         .err => types.MessageType.Error,
         .warn => types.MessageType.Warning,
@@ -23,7 +21,7 @@ pub fn log(
 
     var message_buf: [1024]u8 = undefined;
 
-    const message = std.fmt.bufPrint(&message_buf, prefix ++ format, args) catch return;
+    const message = std.fmt.bufPrint(&message_buf, format, args) catch return;
 
     const notification = types.Notification.LogMessage{ .params = .{
         .type = message_type,
