@@ -5,13 +5,9 @@ requests are received. It will also keep track of and automatically
 update the documents being edited.
 
 # Usage
-1. Create an object containing information about server capabilities and info.
+1. Create an object containing information about the server.
 ```zig
     const server_data = lsp_types.ServerData{
-        .capabilities = .{
-            .hoverProvider = true,
-            .codeActionProvider = true,
-        },
         .serverInfo = .{
             .name = "test server",
             .version = "0.1.0",

@@ -78,10 +78,12 @@ pub fn Lsp(comptime StateType: type) type {
         }
         pub fn registerHoverCallback(self: *Self, callback: *const HoverCallback) void {
             self.callback_hover = callback;
+            self.server_data.capabilities.hoverProvider = true;
             logger.trace("Registered hover callback", .{});
         }
         pub fn registerCodeActionCallback(self: *Self, callback: *const CodeActionCallback) void {
             self.callback_codeAction = callback;
+            self.server_data.capabilities.codeActionProvider = true;
             logger.trace("Registered code action callback", .{});
         }
 
