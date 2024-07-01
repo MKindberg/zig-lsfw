@@ -73,7 +73,7 @@ pub const Response = struct {
     pub const Hover = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        result: Result,
+        result: ?Result = null,
 
         const Result = struct {
             contents: []const u8,
@@ -82,7 +82,6 @@ pub const Response = struct {
         const Self = @This();
         pub fn init(id: i32, contents: []const u8) Self {
             return Self{
-                .jsonrpc = "2.0",
                 .id = id,
                 .result = .{
                     .contents = contents,
@@ -94,7 +93,7 @@ pub const Response = struct {
     pub const CodeAction = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        result: []const Result,
+        result: ?[]const Result = null,
 
         pub const Result = struct {
             title: []const u8,
@@ -109,7 +108,7 @@ pub const Response = struct {
     pub const LocationResponse = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        result: Location,
+        result: ?Location = null,
 
         const Self = @This();
         pub fn init(id: i32, location: Location) Self {
@@ -123,7 +122,7 @@ pub const Response = struct {
     pub const MultiLocationResponse = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        result: []const Location,
+        result: ?[]const Location = null,
 
         const Self = @This();
         pub fn init(id: i32, locations: []const Location) Self {

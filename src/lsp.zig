@@ -235,10 +235,11 @@ pub fn Lsp(comptime StateType: type) type {
                         const params = parsed.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        if (callback(arena.allocator(), context, params.position)) |message| {
-                            const response = types.Response.Hover.init(parsed.id, message);
-                            try writeResponse(allocator, response);
-                        }
+                        const response = if (callback(arena.allocator(), context, params.position)) |message|
+                            types.Response.Hover.init(parsed.id, message)
+                        else
+                            types.Response.Hover{ .id = parsed.id };
+                        try writeResponse(allocator, response);
                     }
                 },
                 rpc.MethodType.@"textDocument/codeAction" => {
@@ -248,10 +249,11 @@ pub fn Lsp(comptime StateType: type) type {
                         const params = parsed.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
 
-                        if (callback(arena.allocator(), context, params.range)) |results| {
-                            const response = types.Response.CodeAction{ .id = parsed.id, .result = results };
-                            try writeResponse(allocator, response);
-                        }
+                        const response = if (callback(arena.allocator(), context, params.range)) |results|
+                            types.Response.CodeAction{ .id = parsed.id, .result = results }
+                        else
+                            types.Response.CodeAction{ .id = parsed.id };
+                        try writeResponse(allocator, response);
                     }
                 },
                 rpc.MethodType.@"textDocument/declaration" => {
@@ -279,10 +281,12 @@ pub fn Lsp(comptime StateType: type) type {
                         const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
                         const params = parsed.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
-                        if (callback(arena.allocator(), context, params.position)) |locations| {
-                            const response = types.Response.MultiLocationResponse.init(parsed.id, locations);
-                            try writeResponse(arena.allocator(), response);
-                        }
+
+                        const response = if (callback(arena.allocator(), context, params.position)) |locations|
+                            types.Response.MultiLocationResponse.init(parsed.id, locations)
+                        else
+                            types.Response.MultiLocationResponse{ .id = parsed.id };
+                        try writeResponse(arena.allocator(), response);
                     }
                 },
                 rpc.MethodType.shutdown => {
@@ -302,10 +306,11 @@ pub fn Lsp(comptime StateType: type) type {
             const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
             const params = parsed.params;
             const context = self.contexts.getPtr(params.textDocument.uri).?;
-            if (callback(arena.allocator(), context, params.position)) |location| {
-                const response = types.Response.LocationResponse.init(parsed.id, location);
-                try writeResponse(arena.allocator(), response);
-            }
+            const response = if (callback(arena.allocator(), context, params.position)) |location|
+                types.Response.LocationResponse.init(parsed.id, location)
+            else
+                types.Response.LocationResponse{ .id = parsed.id };
+            try writeResponse(arena.allocator(), response);
         }
 
         fn handleShutdown(allocator: std.mem.Allocator, msg: []const u8) !void {
