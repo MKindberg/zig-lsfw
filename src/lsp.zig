@@ -175,6 +175,8 @@ pub fn Lsp(comptime StateType: type) type {
             if (local_state.shutdown and msg.method != rpc.MethodType.exit) {
                 return try handleShutingDown(allocator, msg.method, msg.content);
             }
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            defer arena.deinit();
             switch (msg.method) {
                 rpc.MethodType.initialize => {
                     if (!self.server_data.capabilities.textDocumentSync.openClose) @panic("TextDocumentSync.OpenClose must be true");
@@ -182,8 +184,6 @@ pub fn Lsp(comptime StateType: type) type {
                 },
                 rpc.MethodType.initialized => {},
                 rpc.MethodType.@"textDocument/didOpen" => {
-                    var arena = std.heap.ArenaAllocator.init(self.allocator);
-                    defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidOpenTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                     const params = parsed.params;
@@ -195,8 +195,6 @@ pub fn Lsp(comptime StateType: type) type {
                     }
                 },
                 rpc.MethodType.@"textDocument/didChange" => {
-                    var arena = std.heap.ArenaAllocator.init(self.allocator);
-                    defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidChangeTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                     const params = parsed.params;
@@ -210,8 +208,6 @@ pub fn Lsp(comptime StateType: type) type {
                     }
                 },
                 rpc.MethodType.@"textDocument/didSave" => {
-                    var arena = std.heap.ArenaAllocator.init(self.allocator);
-                    defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidSaveTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                     const params = parsed.params;
@@ -221,8 +217,6 @@ pub fn Lsp(comptime StateType: type) type {
                     }
                 },
                 rpc.MethodType.@"textDocument/didClose" => {
-                    var arena = std.heap.ArenaAllocator.init(self.allocator);
-                    defer arena.deinit();
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidCloseTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                     const params = parsed.params;
@@ -236,8 +230,6 @@ pub fn Lsp(comptime StateType: type) type {
                 },
                 rpc.MethodType.@"textDocument/hover" => {
                     if (self.callback_hover) |callback| {
-                        var arena = std.heap.ArenaAllocator.init(self.allocator);
-                        defer arena.deinit();
                         const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                         const params = parsed.params;
@@ -251,8 +243,6 @@ pub fn Lsp(comptime StateType: type) type {
                 },
                 rpc.MethodType.@"textDocument/codeAction" => {
                     if (self.callback_codeAction) |callback| {
-                        var arena = std.heap.ArenaAllocator.init(self.allocator);
-                        defer arena.deinit();
                         const parsed = try std.json.parseFromSliceLeaky(types.Request.CodeAction, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
                         const params = parsed.params;
@@ -286,8 +276,6 @@ pub fn Lsp(comptime StateType: type) type {
                 },
                 rpc.MethodType.@"textDocument/references" => {
                     if (self.callback_find_references) |callback| {
-                        var arena = std.heap.ArenaAllocator.init(self.allocator);
-                        defer arena.deinit();
                         const parsed = try std.json.parseFromSliceLeaky(types.Request.PositionRequest, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
                         const params = parsed.params;
                         const context = self.contexts.getPtr(params.textDocument.uri).?;
