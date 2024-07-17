@@ -52,7 +52,7 @@ pub const Document = struct {
         self.text = self.data[0..new_len];
     }
 
-    fn idxToPos(text: []const u8, idx: usize) ?types.Position {
+    pub fn idxToPos(text: []const u8, idx: usize) ?types.Position {
         if (idx > text.len) {
             return null;
         }
@@ -64,7 +64,7 @@ pub const Document = struct {
         return .{ .line = line, .character = col };
     }
 
-    fn posToIdx(text: []const u8, pos: types.Position) ?usize {
+    pub fn posToIdx(text: []const u8, pos: types.Position) ?usize {
         var offset: usize = 0;
         var i: usize = 0;
         while (i < pos.line) : (i += 1) {
@@ -94,6 +94,13 @@ pub const Document = struct {
         const start = if (std.mem.lastIndexOfScalar(u8, self.text[0..idx], '\n')) |s| s + 1 else 0;
         const end = idx + (std.mem.indexOfScalar(u8, self.text[idx..], '\n') orelse self.text.len - idx);
 
+        return self.text[start..end];
+    }
+
+    pub fn getWord(self: Document, pos: types.Position, delimiter: []const u8) ?[]const u8 {
+        const idx = posToIdx(self.text, pos) orelse return null;
+        const start = if (std.mem.lastIndexOfAny(u8, self.text[0..idx], delimiter)) |i| i + 1 else 0;
+        const end = std.mem.indexOfAnyPos(u8, self.text, idx, delimiter) orelse self.text.len;
         return self.text[start..end];
     }
 };
