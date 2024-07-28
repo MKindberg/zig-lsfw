@@ -51,6 +51,29 @@ pub const Request = struct {
         id: i32,
         method: []u8,
     };
+
+    pub const Completion = struct {
+        jsonrpc: []const u8 = "2.0",
+        id: i32,
+        method: []u8,
+        params: Params,
+
+        pub const Params = struct {
+            textDocument: TextDocumentIdentifier,
+            position: Position,
+            // context: ?CompletionContext = null,
+
+            const CompletionContext = struct {
+                triggerKind: i32,
+                triggerCharacter: ?[]const u8,
+            };
+            const TriggerKind = enum(i32) {
+                Invoked = 1,
+                TriggerCharacter = 2,
+                TriggerForIncompleteCompletions = 3,
+            };
+        };
+    };
 };
 
 pub const Response = struct {
@@ -165,6 +188,12 @@ pub const Response = struct {
             };
         }
     };
+
+    pub const Completion = struct {
+        jsonrpc: []const u8 = "2.0",
+        id: i32,
+        result: ?[]const CompletionItem = null,
+    };
 };
 
 pub const Notification = struct {
@@ -272,6 +301,7 @@ pub const ServerData = struct {
         typeDefinitionProvider: bool = false,
         implementationProvider: bool = false,
         referencesProvider: bool = false,
+        completionProvider: ?struct {} = .{},
     };
     const ServerInfo = struct { name: []const u8, version: []const u8 };
 };
@@ -383,4 +413,73 @@ pub const TextDocumentSyncOptions = struct {
     openClose: bool = true,
     change: TextDocumentSyncKind = .Incremental,
     save: bool = false,
+};
+
+pub const CompletionItem = struct {
+    label: []const u8,
+    kind: ?Kind = null,
+    detail: ?[]const u8 = null,
+    documentation: ?[]const u8 = null,
+    presentation: ?bool = null,
+    sortText: ?[]const u8 = null,
+    filterText: ?[]const u8 = null,
+    insertText: ?[]const u8 = null,
+    insertTextFormat: ?InsertTextFormat = null,
+    insertTextMode: ?InsertTextMode = null,
+    textEdits: ?[]TextEdit = null,
+    additionalTextEdits: ?[]TextEdit = null,
+    commitCharacters: ?[]const u8 = null,
+
+    const Kind = enum(i32) {
+        Text = 1,
+        Method = 2,
+        Function = 3,
+        Constructor = 4,
+        Field = 5,
+        Variable = 6,
+        Class = 7,
+        Interface = 8,
+        Module = 9,
+        Property = 10,
+        Unit = 11,
+        Value = 12,
+        Enum = 13,
+        Keyword = 14,
+        Snippet = 15,
+        Color = 16,
+        File = 17,
+        Reference = 18,
+        Folder = 19,
+        EnumMember = 20,
+        Constant = 21,
+        Struct = 22,
+        Event = 23,
+        Operator = 24,
+        TypeParameter = 25,
+
+        const Self = @This();
+        pub fn jsonStringify(self: Self, out: anytype) !void {
+            return out.print("{}", .{@intFromEnum(self)});
+        }
+    };
+
+    const InsertTextFormat = enum(i32) {
+        PlainText = 1,
+        Snippet = 2,
+
+        const Self = @This();
+        pub fn jsonStringify(self: Self, out: anytype) !void {
+            return out.print("{}", .{@intFromEnum(self)});
+        }
+    };
+
+    const InsertTextMode = enum(i32) {
+        AsIs = 1,
+        AdjustIndentation = 2,
+
+        const Self = @This();
+        pub fn jsonStringify(self: Self, out: anytype) !void {
+            return out.print("{}", .{@intFromEnum(self)});
+        }
+    };
 };

@@ -32,6 +32,7 @@ pub const MethodType = enum {
     @"textDocument/typeDefinition",
     @"textDocument/implementation",
     @"textDocument/references",
+    @"textDocument/completion",
     shutdown,
     exit,
 
@@ -44,6 +45,7 @@ pub const MethodType = enum {
                 return @enumFromInt(field.value);
             }
         }
+        std.log.warn("Unknown method: {s}", .{s});
         return DecodeError.UnknownMethod;
     }
 };

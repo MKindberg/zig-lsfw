@@ -32,6 +32,8 @@ pub fn Lsp(comptime StateType: type) type {
         const GoToImplementationCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
         const FindReferencesCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const types.Location;
 
+        const CompletionCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const types.CompletionItem;
+
         callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const ChangeDocumentCallback = null,
         callback_doc_save: ?*const SaveDocumentCallback = null,
@@ -44,6 +46,8 @@ pub fn Lsp(comptime StateType: type) type {
         callback_goto_type_definition: ?*const GoToTypeDefinitionCallback = null,
         callback_goto_implementation: ?*const GoToImplementationCallback = null,
         callback_find_references: ?*const FindReferencesCallback = null,
+
+        callback_completion: ?*const CompletionCallback = null,
 
         contexts: std.StringHashMap(Context),
         server_data: types.ServerData,
@@ -124,6 +128,11 @@ pub fn Lsp(comptime StateType: type) type {
             self.callback_find_references = callback;
             self.server_data.capabilities.referencesProvider = true;
             logger.trace("Registered find references callback", .{});
+        }
+        pub fn registerCompletionCallback(self: *Self, callback: *const CompletionCallback) void {
+            self.callback_completion = callback;
+            self.server_data.capabilities.completionProvider = .{};
+            logger.trace("Registered completion callback", .{});
         }
 
         pub fn start(self: *Self) !u8 {
@@ -286,6 +295,19 @@ pub fn Lsp(comptime StateType: type) type {
                             types.Response.MultiLocationResponse.init(parsed.id, locations)
                         else
                             types.Response.MultiLocationResponse{ .id = parsed.id };
+                        try writeResponse(arena.allocator(), response);
+                    }
+                },
+                rpc.MethodType.@"textDocument/completion",
+                => {
+                    if (self.callback_completion) |callback| {
+                        const parsed = try std.json.parseFromSliceLeaky(types.Request.Completion, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
+                        const params = parsed.params;
+                        const context = self.contexts.getPtr(params.textDocument.uri).?;
+                        const response = if (callback(arena.allocator(), context, params.position)) |items|
+                            types.Response.Completion{ .id = parsed.id, .result = items }
+                        else
+                            types.Response.Completion{ .id = parsed.id };
                         try writeResponse(arena.allocator(), response);
                     }
                 },
