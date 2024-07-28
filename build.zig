@@ -11,6 +11,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const helper = b.addExecutable(.{
+        .name = "zig-lsp-server",
+        .root_source_file = b.path("helper-lsp/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    helper.root_module.addImport("lsp", lsp);
+    b.installArtifact(helper);
+
     const tester = b.addExecutable(.{
         .name = "test",
         .root_source_file = b.path("test/main.zig"),
