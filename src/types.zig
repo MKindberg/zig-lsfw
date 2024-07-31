@@ -13,8 +13,8 @@ pub const Request = struct {
         params: Params,
 
         const Params = struct {
-            clientInfo: ?ClientInfo,
-            trace: ?TraceValue,
+            clientInfo: ?ClientInfo = null,
+            trace: ?TraceValue = null,
 
             const ClientInfo = struct {
                 name: []u8,
@@ -65,7 +65,7 @@ pub const Request = struct {
 
             const CompletionContext = struct {
                 triggerKind: i32,
-                triggerCharacter: ?[]const u8,
+                triggerCharacter: ?[]const u8 = null,
             };
             const TriggerKind = enum(i32) {
                 Invoked = 1,
