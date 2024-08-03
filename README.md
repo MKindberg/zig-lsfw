@@ -1,4 +1,4 @@
-# lsp-server
+# zig-lsfw
 A framework for writing language servers in Zig. It allows you to
 register callbacks that will be called when notifications to
 requests are received. It will also keep track of and automatically

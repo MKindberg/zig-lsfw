@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const helper = b.addExecutable(.{
-        .name = "zig-lsp-server",
+        .name = "zlsfw",
         .root_source_file = b.path("helper-lsp/main.zig"),
         .target = target,
         .optimize = optimize,
