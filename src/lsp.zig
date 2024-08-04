@@ -32,7 +32,7 @@ pub fn Lsp(comptime StateType: type) type {
         const GoToImplementationCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.Location;
         const FindReferencesCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const types.Location;
 
-        const CompletionCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?[]const types.CompletionItem;
+        const CompletionCallback = fn (arena: std.mem.Allocator, context: *Context, position: types.Position) ?types.CompletionList;
 
         callback_doc_open: ?*const OpenDocumentCallback = null,
         callback_doc_change: ?*const ChangeDocumentCallback = null,

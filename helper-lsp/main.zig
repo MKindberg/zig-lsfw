@@ -27,16 +27,19 @@ pub fn main() !u8 {
     return try server.start();
 }
 
-fn handleCompletion(arena: std.mem.Allocator, context: *Lsp.Context, position: lsp.types.Position) ?[]lsp.types.CompletionItem {
-    // if (std.mem.startsWith(u8, context.document.getWord(position, " \n") orelse "", "handle")) {
-    _ = context;
-    _ = position;
-    return handlerCompletions(arena);
-    // }
-    // return null;
+fn handleCompletion(arena: std.mem.Allocator, context: *Lsp.Context, position: lsp.types.Position) ?lsp.types.CompletionList {
+    if (std.mem.startsWith(u8, context.document.getWord(position, " \n") orelse "", "handle")) {
+        return .{ .items = handlerCompletions(arena) };
+    }
+    if (std.mem.startsWith(u8, "handle", context.document.getWord(position, " \n") orelse "")) {
+        return .{
+            .isIncomplete = true,
+        };
+    }
+    return null;
 }
 
-fn handlerCompletions(allocator: std.mem.Allocator) ?[]lsp.types.CompletionItem {
+fn handlerCompletions(allocator: std.mem.Allocator) []lsp.types.CompletionItem {
     var completions = std.ArrayList(lsp.types.CompletionItem).init(allocator);
     completions.append(.{
         .label = "handleOpenDoc",

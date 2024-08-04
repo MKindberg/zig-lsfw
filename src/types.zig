@@ -192,7 +192,7 @@ pub const Response = struct {
     pub const Completion = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        result: ?[]const CompletionItem = null,
+        result: ?CompletionList = null,
     };
 };
 
@@ -415,6 +415,18 @@ pub const TextDocumentSyncOptions = struct {
     save: bool = false,
 };
 
+pub const CompletionList = struct {
+    isIncomplete: bool = false,
+    itemDefaults: ?CompletionItemDefaults = null,
+    items: []CompletionItem = &.{},
+};
+
+pub const CompletionItemDefaults = struct {
+    commitCharacters: ?[]u8 = null,
+    editRange: ?Range = null,
+    insertTextFormat: ?CompletionItem.InsertTextFormat = null,
+    insertTextMode: ?CompletionItem.InsertTextMode = null,
+};
 pub const CompletionItem = struct {
     label: []const u8,
     kind: ?Kind = null,
