@@ -14,7 +14,7 @@ pub fn main() !u8 {
 
     const server_data = lsp.types.ServerData{
         .serverInfo = .{
-            .name = "lsp-server-helper",
+            .name = "zlsfw",
             .version = "0.1.0",
         },
     };
@@ -28,13 +28,11 @@ pub fn main() !u8 {
 }
 
 fn handleCompletion(arena: std.mem.Allocator, context: *Lsp.Context, position: lsp.types.Position) ?lsp.types.CompletionList {
-    if (std.mem.startsWith(u8, context.document.getWord(position, " \n") orelse "", "handle")) {
+    const idx = lsp.Document.posToIdx(context.document.text, position).?;
+    std.debug.print("handleCompletion idx = {}", .{idx});
+    if (idx == 1 or context.document.text[idx - 2] == '\n') {
+        std.debug.print("handleCompletion2", .{});
         return .{ .items = handlerCompletions(arena) };
-    }
-    if (std.mem.startsWith(u8, "handle", context.document.getWord(position, " \n") orelse "")) {
-        return .{
-            .isIncomplete = true,
-        };
     }
     return null;
 }
