@@ -353,6 +353,16 @@ pub const ErrorCode = enum(i32) {
     MethodNotFound = -32601,
     InvalidParams = -32602,
     InternalError = -32603,
+    jsonrpcReservedErrorRangeStart = -32099,
+    ServerNotInitialized = -32002,
+    UnknownErrorCode = -32001,
+    jsonrpcReservedErrorRangeEnd = -32000,
+    lspReservedErrorRangeStart = -32899,
+    RequestFailed = -32803,
+    ServerCancelled = -32802,
+    ContentModified = -32801,
+    RequestCancelled = -32800,
+    // lspReservedErrorRangeEnd = -32800,
 
     const Self = @This();
     pub fn jsonStringify(self: Self, out: anytype) !void {

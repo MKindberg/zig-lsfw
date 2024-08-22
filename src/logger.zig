@@ -1,6 +1,6 @@
 const std = @import("std");
 const types = @import("types.zig");
-const writeResponse = @import("lsp.zig").writeResponse;
+const writeResponseInternal = @import("lsp.zig").writeResponseInternal;
 
 pub var trace_value: types.TraceValue = .Off;
 
@@ -30,7 +30,7 @@ pub fn log(
 
     var response_buf: [1024]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&response_buf);
-    writeResponse(fba.allocator(), notification) catch return;
+    writeResponseInternal(fba.allocator(), notification) catch return;
 }
 
 pub fn trace(comptime format: []const u8, args: anytype) void {
@@ -38,7 +38,7 @@ pub fn trace(comptime format: []const u8, args: anytype) void {
 
     var buf: [1024]u8 = undefined;
     const message = std.fmt.bufPrint(&buf, format, args) catch return;
-    writeResponse(std.heap.page_allocator, types.Notification.LogTrace{ .params = .{
+    writeResponseInternal(std.heap.page_allocator, types.Notification.LogTrace{ .params = .{
         .message = message,
     } }) catch return;
 }
@@ -50,7 +50,7 @@ pub fn traceVerbose(comptime format: []const u8, args: anytype, comptime verbose
     var buf_verbose: [1024]u8 = undefined;
     const message = std.fmt.bufPrint(&buf, format, args) catch return;
     const verbose = if (trace.value == .Verbose) std.fmt.bufPrint(&buf_verbose, verbose_format, verbose_args) catch null else null;
-    writeResponse(std.heap.page_allocator, types.Notification.Trace{ .params = .{
+    writeResponseInternal(std.heap.page_allocator, types.Notification.Trace{ .params = .{
         .message = message,
         .verbose = verbose,
     } }) catch return;

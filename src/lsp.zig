@@ -8,14 +8,6 @@ const rpc = @import("rpc.zig");
 
 const Reader = @import("reader.zig").Reader;
 
-pub fn writeResponse(allocator: std.mem.Allocator, msg: anytype) !void {
-    const response = try rpc.encodeMessage(allocator, msg);
-    defer response.deinit();
-
-    const writer = std.io.getStdOut().writer();
-    _ = try writer.write(response.items);
-}
-
 pub fn Lsp(comptime StateType: type) type {
     return struct {
         const OpenDocumentCallback = fn (arena: std.mem.Allocator, context: *Context) void;
@@ -52,6 +44,14 @@ pub fn Lsp(comptime StateType: type) type {
         contexts: std.StringHashMap(Context),
         server_data: types.ServerData,
         allocator: std.mem.Allocator,
+
+        server_state: ServerState = .Stopped,
+        const ServerState = enum {
+            Stopped,
+            Initialize,
+            Running,
+            Shutdown,
+        };
 
         pub const Context = struct {
             document: Document,
@@ -174,24 +174,40 @@ pub fn Lsp(comptime StateType: type) type {
             return @intFromBool(run_state == RunState.ShutdownOk);
         }
 
-        fn handleMessage(self: *Self, allocator: std.mem.Allocator, msg: rpc.DecodedMessage) !RunState {
-            const local_state = struct {
-                var shutdown = false;
-            };
+        pub fn writeResponse(self: Self, allocator: std.mem.Allocator, msg: anytype) !void {
+            if (self.server_state != .Running and @TypeOf(msg) != types.Response.Error) {
+                std.log.err("Cannot send message when server not in running state", .{});
+                return;
+            }
+            try writeResponseInternal(allocator, msg);
+        }
 
+        fn handleMessage(self: *Self, allocator: std.mem.Allocator, msg: rpc.DecodedMessage) !RunState {
             logger.trace("Received request: {s}", .{msg.method.toString()});
 
-            if (local_state.shutdown and msg.method != rpc.MethodType.exit) {
-                return try handleShutingDown(allocator, msg.method, msg.content);
+            if (self.server_state == .Stopped and msg.method != rpc.MethodType.initialize) {
+                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server not initialized");
+                return RunState.Run;
+            }
+            if (self.server_state == .Initialize and (msg.method != rpc.MethodType.initialized or msg.method != rpc.MethodType.exit)) {
+                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server initializing");
+                return RunState.Run;
+            }
+            if (self.server_state == .Shutdown and msg.method != rpc.MethodType.exit) {
+                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.InvalidRequest, "Server shutting down");
+                return RunState.Run;
             }
             var arena = std.heap.ArenaAllocator.init(self.allocator);
             defer arena.deinit();
             switch (msg.method) {
                 rpc.MethodType.initialize => {
                     if (!self.server_data.capabilities.textDocumentSync.openClose) @panic("TextDocumentSync.OpenClose must be true");
-                    try handleInitialize(allocator, msg.content, self.server_data);
+                    try self.handleInitialize(allocator, msg.content, self.server_data);
+                    self.server_state = .Initialize;
                 },
-                rpc.MethodType.initialized => {},
+                rpc.MethodType.initialized => {
+                    self.server_state = .Running;
+                },
                 rpc.MethodType.@"textDocument/didOpen" => {
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.DidOpenTextDocument, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
 
@@ -248,7 +264,7 @@ pub fn Lsp(comptime StateType: type) type {
                             types.Response.Hover.init(parsed.id, message)
                         else
                             types.Response.Hover{ .id = parsed.id };
-                        try writeResponse(allocator, response);
+                        try self.writeResponse(allocator, response);
                     }
                 },
                 rpc.MethodType.@"textDocument/codeAction" => {
@@ -262,7 +278,7 @@ pub fn Lsp(comptime StateType: type) type {
                             types.Response.CodeAction{ .id = parsed.id, .result = results }
                         else
                             types.Response.CodeAction{ .id = parsed.id };
-                        try writeResponse(allocator, response);
+                        try self.writeResponse(allocator, response);
                     }
                 },
                 rpc.MethodType.@"textDocument/declaration" => {
@@ -295,7 +311,7 @@ pub fn Lsp(comptime StateType: type) type {
                             types.Response.MultiLocationResponse.init(parsed.id, locations)
                         else
                             types.Response.MultiLocationResponse{ .id = parsed.id };
-                        try writeResponse(arena.allocator(), response);
+                        try self.writeResponse(arena.allocator(), response);
                     }
                 },
                 rpc.MethodType.@"textDocument/completion",
@@ -308,14 +324,17 @@ pub fn Lsp(comptime StateType: type) type {
                             types.Response.Completion{ .id = parsed.id, .result = items }
                         else
                             types.Response.Completion{ .id = parsed.id };
-                        try writeResponse(arena.allocator(), response);
+                        try self.writeResponse(arena.allocator(), response);
                     }
                 },
                 rpc.MethodType.shutdown => {
-                    try handleShutdown(allocator, msg.content);
-                    local_state.shutdown = true;
+                    try self.handleShutdown(allocator, msg.content);
+                    self.server_state = .Shutdown;
                 },
                 rpc.MethodType.exit => {
+                    if (self.server_state == .Shutdown) {
+                        return RunState.ShutdownOk;
+                    }
                     return RunState.ShutdownErr;
                 },
             }
@@ -332,37 +351,27 @@ pub fn Lsp(comptime StateType: type) type {
                 types.Response.LocationResponse.init(parsed.id, location)
             else
                 types.Response.LocationResponse{ .id = parsed.id };
-            try writeResponse(arena.allocator(), response);
+            try self.writeResponse(arena.allocator(), response);
         }
 
-        fn handleShutdown(allocator: std.mem.Allocator, msg: []const u8) !void {
+        fn handleShutdown(self: Self, allocator: std.mem.Allocator, msg: []const u8) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
             const parsed = try std.json.parseFromSliceLeaky(types.Request.Shutdown, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
             const response = types.Response.Shutdown.init(parsed);
-            try writeResponse(allocator, response);
+            try self.writeResponse(allocator, response);
         }
 
-        fn handleShutingDown(allocator: std.mem.Allocator, method_type: rpc.MethodType, msg: []const u8) !RunState {
-            if (method_type == rpc.MethodType.exit) {
-                return RunState.ShutdownOk;
-            }
-
+        fn replyInvalidRequest(self: Self, allocator: std.mem.Allocator, msg: []const u8, error_code: types.ErrorCode, error_message: []const u8) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
-            const parsed = std.json.parseFromSliceLeaky(types.Request.Request, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
+            const request = std.json.parseFromSliceLeaky(types.Request.Request, arena.allocator(), msg, .{ .ignore_unknown_fields = true }) catch return;
 
-            if (parsed) |request| {
-                const reply = types.Response.Error.init(request.id, types.ErrorCode.InvalidRequest, "Shutting down");
-                try writeResponse(allocator, reply);
-            } else |err| if (err == error.UnknownField) {
-                const reply = types.Response.Error.init(0, types.ErrorCode.InvalidRequest, "Shutting down");
-                try writeResponse(allocator, reply);
-            }
-            return RunState.Run;
+            const reply = types.Response.Error.init(request.id, error_code, error_message);
+            try self.writeResponse(allocator, reply);
         }
 
-        fn handleInitialize(allocator: std.mem.Allocator, msg: []const u8, server_data: types.ServerData) !void {
+        fn handleInitialize(self: Self, allocator: std.mem.Allocator, msg: []const u8, server_data: types.ServerData) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
             const request = try std.json.parseFromSliceLeaky(types.Request.Initialize, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
@@ -376,23 +385,30 @@ pub fn Lsp(comptime StateType: type) type {
 
             const response_msg = types.Response.Initialize.init(request.id, server_data);
 
-            try writeResponse(allocator, response_msg);
+            try self.writeResponse(allocator, response_msg);
         }
 
-        pub fn openDocument(self: *Self, name: []const u8, language: []const u8, content: []const u8) !void {
+        fn openDocument(self: *Self, name: []const u8, language: []const u8, content: []const u8) !void {
             const context = Context{ .document = try Document.init(self.allocator, name, language, content), .state = null };
 
             try self.contexts.put(context.document.uri, context);
         }
 
-        pub fn closeDocument(self: *Self, name: []const u8) void {
+        fn closeDocument(self: *Self, name: []const u8) void {
             const entry = self.contexts.fetchRemove(name);
             entry.?.value.document.deinit();
         }
 
-        pub fn updateDocument(self: *Self, name: []const u8, text: []const u8, range: types.Range) !void {
+        fn updateDocument(self: *Self, name: []const u8, text: []const u8, range: types.Range) !void {
             var context = self.contexts.getPtr(name).?;
             try context.document.update(text, range);
         }
     };
+}
+pub fn writeResponseInternal(allocator: std.mem.Allocator, msg: anytype) !void {
+    const response = try rpc.encodeMessage(allocator, msg);
+    defer response.deinit();
+
+    const writer = std.io.getStdOut().writer();
+    _ = try writer.write(response.items);
 }
