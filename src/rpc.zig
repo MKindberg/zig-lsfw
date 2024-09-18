@@ -33,6 +33,7 @@ pub const MethodType = enum {
     @"textDocument/implementation",
     @"textDocument/references",
     @"textDocument/completion",
+    @"$/setTrace",
     shutdown,
     exit,
 

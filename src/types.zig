@@ -275,6 +275,15 @@ pub const Notification = struct {
             verbose: ?[]const u8 = null,
         };
     };
+
+    pub const SetTrace = struct {
+        jsonrpc: []const u8 = "2.0",
+        method: []const u8 = "$/setTrace",
+        params: Params,
+        pub const Params = struct {
+            value: TraceValue,
+        };
+    };
 };
 
 const TextDocumentItem = struct {

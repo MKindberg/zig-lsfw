@@ -314,6 +314,11 @@ pub fn Lsp(comptime StateType: type) type {
                         try self.writeResponse(arena.allocator(), response);
                     }
                 },
+                rpc.MethodType.@"$/setTrace" => {
+                    const parsed = try std.json.parseFromSliceLeaky(types.Notification.SetTrace, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
+                    logger.trace_value = parsed.params.value;
+
+                },
                 rpc.MethodType.@"textDocument/completion",
                 => {
                     if (self.callback_completion) |callback| {
