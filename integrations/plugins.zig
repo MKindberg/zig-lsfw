@@ -1,7 +1,10 @@
 const std = @import("std");
+
 const generatePackageJson = @import("vscode/package_json.zig").generate;
 const generateExtensionJs = @import("vscode/extension_js.zig").generate;
 const generateReadmeMd = @import("vscode/readme_md.zig").generate;
+
+const generatePluginLua = @import("nvim/plugin_lua.zig").generate;
 
 pub const ServerInfo = struct {
     name: []const u8,
@@ -14,6 +17,7 @@ pub const ServerInfo = struct {
 
 pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
     try generateVSCode(allocator, info);
+    try generateNvim(allocator, info);
 }
 
 pub fn generateVSCode(allocator: std.mem.Allocator, info: ServerInfo) !void {
@@ -28,4 +32,11 @@ pub fn generateVSCode(allocator: std.mem.Allocator, info: ServerInfo) !void {
 
     std.debug.print("Run 'npm install' in the vscode dir to install the needed dependency\n", .{});
     std.debug.print("Run 'vsce package' in the vscode dir to build the plugin\n", .{});
+}
+
+pub fn generateNvim(allocator: std.mem.Allocator, info: ServerInfo) !void {
+    std.fs.cwd().makeDir("editors") catch {};
+    std.fs.cwd().makeDir("editors/nvim") catch {};
+
+    generatePluginLua(allocator, info);
 }
