@@ -36,4 +36,10 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run nvim test");
     test_step.dependOn(&run_test.step);
+
+    _ = b.addModule("plugins", .{
+        .root_source_file = b.path("integrations/plugins.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 }
