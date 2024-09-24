@@ -5,14 +5,19 @@ const generateExtensionJs = @import("vscode/extension_js.zig").generate;
 const generateReadmeMd = @import("vscode/readme_md.zig").generate;
 
 const generatePluginLua = @import("nvim/plugin_lua.zig").generate;
+const generateMason = @import("nvim/mason_registry.zig").generate;
 
 pub const ServerInfo = struct {
     name: []const u8,
+    languages: []const []const u8,
     displayName: ?[]const u8 = null,
     description: []const u8 = "",
     publisher: ?[]const u8 = null,
     repository: ?[]const u8 = null,
-    languages: []const []const u8,
+    homepage: ?[]const u8 = null,
+    license: ?[]const u8 = null,
+    version: ?[]const u8 = null,
+    source_id: ?[]const u8 = null,
 };
 
 pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
@@ -38,5 +43,12 @@ pub fn generateNvim(allocator: std.mem.Allocator, info: ServerInfo) !void {
     std.fs.cwd().makeDir("editors") catch {};
     std.fs.cwd().makeDir("editors/nvim") catch {};
 
-    generatePluginLua(allocator, info);
+    try generatePluginLua(allocator, info);
+}
+
+pub fn generateMasonRegistry(allocator: std.mem.Allocator, info: ServerInfo) !void {
+    std.fs.cwd().makeDir("editors") catch {};
+    std.fs.cwd().makeDir("editors/nvim") catch {};
+
+    try generateMason(allocator, info);
 }

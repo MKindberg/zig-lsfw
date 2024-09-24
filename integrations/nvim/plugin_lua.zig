@@ -14,7 +14,7 @@ pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
         .languages = languages.items,
     });
     defer allocator.free(content);
-    const filename = "editors/vscode/extension.js";
+    const filename = "editors/nvim/plugin.lua";
     var file = try std.fs.cwd().createFile(filename, .{});
     defer file.close();
     try file.writeAll(content);
