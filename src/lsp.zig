@@ -189,7 +189,7 @@ pub fn Lsp(comptime StateType: type) type {
                 try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server not initialized");
                 return RunState.Run;
             }
-            if (self.server_state == .Initialize and (msg.method != rpc.MethodType.initialized or msg.method != rpc.MethodType.exit)) {
+            if (self.server_state == .Initialize and (msg.method != rpc.MethodType.initialized and msg.method != rpc.MethodType.exit)) {
                 try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server initializing");
                 return RunState.Run;
             }
@@ -317,7 +317,6 @@ pub fn Lsp(comptime StateType: type) type {
                 rpc.MethodType.@"$/setTrace" => {
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.SetTrace, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
                     logger.trace_value = parsed.params.value;
-
                 },
                 rpc.MethodType.@"textDocument/completion",
                 => {
@@ -359,24 +358,24 @@ pub fn Lsp(comptime StateType: type) type {
             try self.writeResponse(arena.allocator(), response);
         }
 
-        fn handleShutdown(self: Self, allocator: std.mem.Allocator, msg: []const u8) !void {
+        fn handleShutdown(_: Self, allocator: std.mem.Allocator, msg: []const u8) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
             const parsed = try std.json.parseFromSliceLeaky(types.Request.Shutdown, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
             const response = types.Response.Shutdown.init(parsed);
-            try self.writeResponse(allocator, response);
+            try writeResponseInternal(allocator, response);
         }
 
-        fn replyInvalidRequest(self: Self, allocator: std.mem.Allocator, msg: []const u8, error_code: types.ErrorCode, error_message: []const u8) !void {
+        fn replyInvalidRequest(_: Self, allocator: std.mem.Allocator, msg: []const u8, error_code: types.ErrorCode, error_message: []const u8) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
             const request = std.json.parseFromSliceLeaky(types.Request.Request, arena.allocator(), msg, .{ .ignore_unknown_fields = true }) catch return;
 
             const reply = types.Response.Error.init(request.id, error_code, error_message);
-            try self.writeResponse(allocator, reply);
+            try writeResponseInternal(allocator, reply);
         }
 
-        fn handleInitialize(self: Self, allocator: std.mem.Allocator, msg: []const u8, server_data: types.ServerData) !void {
+        fn handleInitialize(_: Self, allocator: std.mem.Allocator, msg: []const u8, server_data: types.ServerData) !void {
             var arena = std.heap.ArenaAllocator.init(allocator);
             defer arena.deinit();
             const request = try std.json.parseFromSliceLeaky(types.Request.Initialize, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
@@ -390,7 +389,7 @@ pub fn Lsp(comptime StateType: type) type {
 
             const response_msg = types.Response.Initialize.init(request.id, server_data);
 
-            try self.writeResponse(allocator, response_msg);
+            try writeResponseInternal(allocator, response_msg);
         }
 
         fn openDocument(self: *Self, name: []const u8, language: []const u8, content: []const u8) !void {
