@@ -3,50 +3,40 @@ const std = @import("std");
 const ServerInfo = @import("../plugins.zig").ServerInfo;
 
 pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
-    var activation_events = std.ArrayList(u8).init(allocator);
+    var activation_events = std.ArrayList([]const u8).init(allocator);
     defer activation_events.deinit();
+    defer for (activation_events.items) |a| {
+        allocator.free(a);
+    };
     for (info.languages) |l| {
-        try activation_events.writer().print("    \"onLanguage:{s}\",\n", .{l});
+        const str = try std.fmt.allocPrint(allocator, "onLanguage:{s}", .{l});
+        try activation_events.append(str);
     }
-    _ = activation_events.pop(); // \n
-    _ = activation_events.pop(); // ,
-    const repo = std.fmt.allocPrint(allocator, "\"repository\": \"{s}\",", .{info.repository orelse ""}) catch unreachable;
-    defer allocator.free(repo);
-    const content = try std.fmt.allocPrint(allocator, package_json, .{
+
+    const content = PackageJson{
         .name = info.name,
-        .display = info.displayName orelse info.name,
+        .displayName = info.displayName orelse info.name,
         .description = info.description,
-        .repo = if (info.repository != null) repo else "",
+        .repository = info.repository orelse "",
         .publisher = info.publisher orelse std.posix.getenv("USER").?,
-        .activation = activation_events.items,
-    });
-    defer allocator.free(content);
+        .activationEvents = activation_events.items,
+    };
     const filename = "editors/vscode/package.json";
     var file = try std.fs.cwd().createFile(filename, .{});
     defer file.close();
-    try file.writeAll(content);
+    try std.json.stringify(content, .{ .whitespace = .indent_2 }, file.writer());
 }
 
-const package_json =
-    \\{{
-    \\  "name": "{[name]s}",
-    \\  "displayName": "{[display]s}",
-    \\  "description": "{[description]s}",
-    \\  {[repo]s}
-    \\  "version": "0.0.1",
-    \\  "publisher": "{[publisher]s}",
-    \\  "engines": {{
-    \\    "vscode": "^1.90.0"
-    \\  }},
-    \\  "categories": [
-    \\    "Language Server"
-    \\  ],
-    \\  "activationEvents": [
-    \\{[activation]s}
-    \\  ],
-    \\  "main": "./extension.js",
-    \\  "dependencies": {{
-    \\    "vscode-languageclient": "^9.0.1"
-    \\  }}
-    \\}}
-;
+const PackageJson = struct {
+    name: []const u8,
+    displayName: []const u8,
+    description: []const u8,
+    repository: []const u8 = "",
+    version: []const u8 = "0.0.1",
+    publisher: []const u8,
+    engines: struct { vscode: []const u8 = "1.90.0" } = .{},
+    categories: []const []const u8 = &.{"Language Server"},
+    activationEvents: []const []const u8,
+    main: []const u8 = "./extension.js",
+    dependencies: struct { @"vscode-languageclient": []const u8 = "^9.0.1" } = .{},
+};
