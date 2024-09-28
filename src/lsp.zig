@@ -318,8 +318,10 @@ pub fn Lsp(comptime StateType: type) type {
                     const parsed = try std.json.parseFromSliceLeaky(types.Notification.SetTrace, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
                     logger.trace_value = parsed.params.value;
                 },
-                rpc.MethodType.@"textDocument/completion",
-                => {
+                rpc.MethodType.@"$/cancelRequest" => {
+                    // No way to cancel a request in a single threaded server
+                },
+                rpc.MethodType.@"textDocument/completion" => {
                     if (self.callback_completion) |callback| {
                         const parsed = try std.json.parseFromSliceLeaky(types.Request.Completion, arena.allocator(), msg.content, .{ .ignore_unknown_fields = true });
                         const params = parsed.params;

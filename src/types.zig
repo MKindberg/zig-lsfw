@@ -284,6 +284,18 @@ pub const Notification = struct {
             value: TraceValue,
         };
     };
+
+    pub const Cancel = struct {
+        jsonrpc: []const u8 = "2.0",
+        method: []const u8 = "$/cancelRequest",
+        params: Params,
+        pub const Params = struct {
+            id: union {
+                number: i32,
+                string: []const u8,
+            },
+        };
+    };
 };
 
 const TextDocumentItem = struct {
