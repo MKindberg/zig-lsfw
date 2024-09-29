@@ -51,6 +51,15 @@ pub fn Lsp(comptime StateType: type) type {
             Initialize,
             Running,
             Shutdown,
+
+            fn validMessage(self: ServerState, message_type: rpc.MethodType) bool {
+                switch (self) {
+                    .Stopped => return message_type == .initialize,
+                    .Initialize => return message_type == .initialized or message_type == .exit,
+                    .Shutdown => return message_type == .exit,
+                    .Running => return message_type != .initialize and message_type != .initialized,
+                }
+            }
         };
 
         pub const Context = struct {
@@ -185,18 +194,16 @@ pub fn Lsp(comptime StateType: type) type {
         fn handleMessage(self: *Self, allocator: std.mem.Allocator, msg: rpc.DecodedMessage) !RunState {
             logger.trace("Received request: {s}", .{msg.method.toString()});
 
-            if (self.server_state == .Stopped and msg.method != rpc.MethodType.initialize) {
-                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server not initialized");
+            if (!self.server_state.validMessage(msg.method)) {
+                switch (self.server_state) {
+                    .Stopped => try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server not initialized"),
+                    .Initialize => try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server initializing"),
+                    .Shutdown => try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.InvalidRequest, "Server shutting down"),
+                    .Running => try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server already running"),
+                }
                 return RunState.Run;
             }
-            if (self.server_state == .Initialize and (msg.method != rpc.MethodType.initialized and msg.method != rpc.MethodType.exit)) {
-                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.ServerNotInitialized, "Server initializing");
-                return RunState.Run;
-            }
-            if (self.server_state == .Shutdown and msg.method != rpc.MethodType.exit) {
-                try self.replyInvalidRequest(allocator, msg.content, types.ErrorCode.InvalidRequest, "Server shutting down");
-                return RunState.Run;
-            }
+
             var arena = std.heap.ArenaAllocator.init(self.allocator);
             defer arena.deinit();
             switch (msg.method) {
