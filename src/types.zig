@@ -41,8 +41,6 @@ pub const Request = struct {
             textDocument: TextDocumentIdentifier,
             range: Range,
             context: CodeActionContext,
-
-            const CodeActionContext = struct {};
         };
     };
 
@@ -120,6 +118,7 @@ pub const Response = struct {
 
         pub const Result = struct {
             title: []const u8,
+            kind: ?CodeActionKind = null,
             edit: ?WorkspaceEdit,
             const WorkspaceEdit = struct {
                 changes: std.json.ArrayHashMap([]const TextEdit),
@@ -525,4 +524,64 @@ pub const CompletionItem = struct {
             return out.print("{}", .{@intFromEnum(self)});
         }
     };
+};
+pub const CodeActionKind = enum {
+    Empty,
+    QuickFix,
+    Refactor,
+    RefactorExtract,
+    RefactorInline,
+    RefactorRewrite,
+    Source,
+    SourceOrganizeImports,
+    SourceFixAll,
+
+    const Self = @This();
+    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) !Self {
+        _ = options;
+        switch (try source.nextAlloc(allocator, .alloc_if_needed)) {
+            inline .string, .allocated_string => |s| {
+                if (std.mem.eql(u8, s, "")) {
+                    return .Empty;
+                } else if (std.mem.eql(u8, s, "quickfix")) {
+                    return .QuickFix;
+                } else if (std.mem.eql(u8, s, "refactor")) {
+                    return .Refactor;
+                } else if (std.mem.eql(u8, s, "refactor.extract")) {
+                    return .RefactorExtract;
+                } else if (std.mem.eql(u8, s, "refactor.inline")) {
+                    return .RefactorInline;
+                } else if (std.mem.eql(u8, s, "refactor.rewrite")) {
+                    return .RefactorRewrite;
+                } else if (std.mem.eql(u8, s, "source")) {
+                    return .Source;
+                } else if (std.mem.eql(u8, s, "source.organizeImports")) {
+                    return .SourceOrganizeImports;
+                } else if (std.mem.eql(u8, s, "source.fixAll")) {
+                    return .SourceFixAll;
+                } else {
+                    return error.UnexpectedToken;
+                }
+            },
+            else => return error.UnexpectedToken,
+        }
+    }
+    pub fn jsonStringify(self: Self, out: anytype) !void {
+        switch (self) {
+            .Empty => return out.print("\"\"", .{}),
+            .QuickFix => return out.print("\"quickfix\"", .{}),
+            .Refactor => return out.print("\"refactor\"", .{}),
+            .RefactorExtract => return out.print("\"refactor.extract\"", .{}),
+            .RefactorInline => return out.print("\"refactor.inline\"", .{}),
+            .RefactorRewrite => return out.print("\"refactor.rewrite\"", .{}),
+            .Source => return out.print("\"source\"", .{}),
+            .SourceOrganizeImports => return out.print("\"source.organizeImports\"", .{}),
+            .SourceFixAll => return out.print("\"source.fixAll\"", .{}),
+        }
+    }
+};
+
+pub const CodeActionContext = struct {
+    diagnostics: []const Diagnostic,
+    only: ?[]CodeActionKind = null,
 };
