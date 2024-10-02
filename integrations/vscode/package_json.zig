@@ -38,5 +38,5 @@ const PackageJson = struct {
     categories: []const []const u8 = &.{"Language Server"},
     activationEvents: []const []const u8,
     main: []const u8 = "./extension.js",
-    dependencies: struct { @"vscode-languageclient": []const u8 = "^9.0.1" } = .{},
+    dependencies: struct { @"vscode-languageclient": []const u8 = "^9.0.1", @"@vscode/vsce": []const u8 = "2.15.0" } = .{},
 };
