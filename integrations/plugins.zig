@@ -23,6 +23,7 @@ pub const ServerInfo = struct {
 pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
     try generateVSCode(allocator, info);
     try generateNvim(allocator, info);
+    try generateMasonRegistry(allocator, info);
 }
 
 pub fn generateVSCode(allocator: std.mem.Allocator, info: ServerInfo) !void {
@@ -51,4 +52,17 @@ pub fn generateMasonRegistry(allocator: std.mem.Allocator, info: ServerInfo) !vo
     std.fs.cwd().makeDir("editors/nvim") catch {};
 
     try generateMason(allocator, info);
+}
+
+pub fn main() !void {
+    const allocator = std.heap.page_allocator;
+    const info = ServerInfo{
+        .name = "my-server",
+        .languages = &[_][]const u8{"rust"},
+        .displayName = "My Server",
+        .description = "My Language Server",
+        .publisher = "my-publisher",
+        .repository = ""
+    };
+    try generateVSCode(allocator, info);
 }
