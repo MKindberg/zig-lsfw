@@ -9,7 +9,7 @@ pub const Request = struct {
     pub const Initialize = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        method: []u8,
+        method: []const u8 = "initialize",
         params: Params,
 
         const Params = struct {
@@ -34,7 +34,7 @@ pub const Request = struct {
     pub const CodeAction = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        method: []u8,
+        method: []const u8 = "textDocument/codeAction",
         params: Params,
 
         pub const Params = struct {
@@ -47,13 +47,13 @@ pub const Request = struct {
     pub const Shutdown = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        method: []u8,
+        method: []const u8 = "shutdown",
     };
 
     pub const Completion = struct {
         jsonrpc: []const u8 = "2.0",
         id: i32,
-        method: []u8,
+        method: []const u8 = "textDocument/completion",
         params: Params,
 
         pub const Params = struct {
@@ -198,7 +198,7 @@ pub const Response = struct {
 pub const Notification = struct {
     pub const DidOpenTextDocument = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []u8,
+        method: []const u8 = "textDocument/didOpen",
         params: Params,
 
         pub const Params = struct {
@@ -208,7 +208,7 @@ pub const Notification = struct {
 
     pub const DidChangeTextDocument = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []u8,
+        method: []const u8 = "textDocument/didChange",
         params: Params,
 
         pub const Params = struct {
@@ -224,7 +224,7 @@ pub const Notification = struct {
 
     pub const DidSaveTextDocument = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []u8,
+        method: []const u8 = "textDocument/didSave",
         params: Params,
         pub const Params = struct {
             textDocument: TextDocumentIdentifier,
@@ -233,7 +233,7 @@ pub const Notification = struct {
 
     pub const DidCloseTextDocument = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []u8,
+        method: []const u8 = "textDocument/didClose",
         params: Params,
         pub const Params = struct {
             textDocument: TextDocumentIdentifier,
@@ -252,7 +252,7 @@ pub const Notification = struct {
 
     pub const Exit = struct {
         jsonrpc: []const u8 = "2.0",
-        method: []u8,
+        method: []const u8 = "exit",
     };
 
     pub const LogMessage = struct {
@@ -310,7 +310,7 @@ const TextDocumentIdentifier = struct {
 
 pub const ServerData = struct {
     capabilities: ServerCapabilities = .{},
-    serverInfo: ServerInfo,
+    serverInfo: ?ServerInfo = null,
 
     const ServerCapabilities = struct {
         textDocumentSync: TextDocumentSyncOptions = .{},
@@ -323,7 +323,10 @@ pub const ServerData = struct {
         referencesProvider: bool = false,
         completionProvider: ?struct {} = .{},
     };
-    const ServerInfo = struct { name: []const u8, version: []const u8 };
+    const ServerInfo = struct {
+        name: []const u8,
+        version: ?[]const u8 = null,
+    };
 };
 
 pub const Range = struct {

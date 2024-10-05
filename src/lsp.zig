@@ -1,11 +1,11 @@
+const std = @import("std");
+const builtin = @import("builtin");
+
 pub const types = @import("types.zig");
 pub const logger = @import("logger.zig");
-pub const Document = @import("document.zig").Document;
 pub const log = logger.log;
-
-const std = @import("std");
+pub const Document = @import("document.zig").Document;
 const rpc = @import("rpc.zig");
-
 const Reader = @import("reader.zig").Reader;
 
 pub fn Lsp(comptime StateType: type) type {
@@ -389,8 +389,11 @@ pub fn Lsp(comptime StateType: type) type {
             defer arena.deinit();
             const request = try std.json.parseFromSliceLeaky(types.Request.Initialize, arena.allocator(), msg, .{ .ignore_unknown_fields = true });
 
-            const client_info = request.params.clientInfo.?;
-            logger.trace("Connected to {s} {s}", .{ client_info.name, client_info.version });
+            if (request.params.clientInfo) |client_info| {
+                logger.trace("Connected to {s} {s}", .{ client_info.name, client_info.version });
+            } else {
+                logger.trace("Connected to unknown server", .{});
+            }
 
             if (request.params.trace) |trace| {
                 logger.trace_value = trace;
@@ -424,4 +427,47 @@ pub fn writeResponseInternal(allocator: std.mem.Allocator, msg: anytype) !void {
 
     const writer = std.io.getStdOut().writer();
     _ = try writer.write(response.items);
+}
+
+// Tests
+
+fn sendInitialize(server: *Lsp(void)) !void {
+    if (!builtin.is_test) @compileError(@src().fn_name ++ " is only for testing");
+
+    var msg = std.ArrayList(u8).init(std.testing.allocator);
+    defer msg.deinit();
+
+    const init_request = types.Request.Initialize{ .id = 0, .params = .{} };
+    try std.json.stringify(init_request, .{}, msg.writer());
+    const decoded = try rpc.decodeMessage(std.testing.allocator, msg.items);
+
+    _ = try server.handleMessage(std.testing.allocator, decoded);
+    try std.testing.expectEqual(server.server_state, .Initialize);
+}
+
+fn sendInitialized(server: *Lsp(void)) !void {
+    if (!builtin.is_test) @compileError(@src().fn_name ++ " is only for testing");
+
+    const decoded = rpc.DecodedMessage{ .method = rpc.MethodType.initialized };
+
+    _ = try server.handleMessage(std.testing.allocator, decoded);
+    try std.testing.expectEqual(server.server_state, .Running);
+}
+
+fn startServer(server: *Lsp(void)) !void {
+    if (!builtin.is_test) @compileError(@src().fn_name ++ " is only for testing");
+    try sendInitialize(server);
+    try sendInitialized(server);
+}
+
+test "Initialize" {
+    var server = Lsp(void).init(std.testing.allocator, .{ .serverInfo = .{ .name = "testing", .version = "1" } });
+    defer server.deinit();
+    try sendInitialize(&server);
+}
+
+test "Initialized" {
+    var server = Lsp(void).init(std.testing.allocator, .{});
+    defer server.deinit();
+    try startServer(&server);
 }

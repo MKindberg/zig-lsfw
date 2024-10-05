@@ -59,7 +59,7 @@ const DecodeError = error{
 
 pub const DecodedMessage = struct {
     method: MethodType,
-    content: []const u8,
+    content: []const u8 = "",
 };
 
 pub fn decodeMessage(allocator: std.mem.Allocator, msg: []const u8) !DecodedMessage {
