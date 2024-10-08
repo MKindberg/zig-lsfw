@@ -63,6 +63,7 @@ pub fn Lsp(comptime StateType: type) type {
         };
 
         pub const Context = struct {
+            server: *Lsp(StateType),
             document: Document,
             state: ?StateType,
         };
@@ -405,7 +406,7 @@ pub fn Lsp(comptime StateType: type) type {
         }
 
         fn openDocument(self: *Self, name: []const u8, language: []const u8, content: []const u8) !void {
-            const context = Context{ .document = try Document.init(self.allocator, name, language, content), .state = null };
+            const context = Context{ .document = try Document.init(self.allocator, name, language, content), .state = null, .server = self };
 
             try self.contexts.put(context.document.uri, context);
         }
