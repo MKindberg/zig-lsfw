@@ -12,7 +12,7 @@ pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
     const content = try std.fmt.allocPrint(allocator, extension_js, .{
         .name = info.name,
         .selector = document_selector.items,
-        .displayName = info.displayName,
+        .displayName = info.displayName orelse info.name,
     });
     defer allocator.free(content);
     const filename = "editors/vscode/extension.js";

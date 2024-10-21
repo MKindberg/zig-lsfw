@@ -8,10 +8,15 @@ pub fn generate(allocator: std.mem.Allocator, info: ServerInfo) !void {
     for (info.languages) |l| {
         try languages.writer().print("\"{s}\", ", .{l});
     }
+    var langs = std.ArrayList(u8).init(allocator);
+    defer langs.deinit();
+    for (info.languages) |l| {
+        try langs.writer().print("\"{s}\", ", .{l});
+    }
     const content = try std.fmt.allocPrint(allocator, plugin_lua, .{
         .name = info.name,
         .display = info.displayName orelse info.name,
-        .languages = languages.items,
+        .languages = langs.items,
     });
     defer allocator.free(content);
     const filename = "editors/nvim/plugin.lua";
@@ -28,7 +33,7 @@ const plugin_lua =
     \\        vim.notify("Failed to start {[display]s}")
     \\    else
     \\        vim.api.nvim_create_autocmd("FileType",
-    \\            {{ pattern = "{[languages]s}", callback = function() vim.lsp.buf_attach_client(0, client) end }}
+    \\            {{ pattern = {{{[languages]s}}}, callback = function() vim.lsp.buf_attach_client(0, client) end }}
     \\        )
     \\    end
     \\end
